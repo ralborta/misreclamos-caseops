@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  coordinador
+  abogado_interno
+  abogado_asociado
+  readonly
+}
+
+enum CaseStatus {
+  nuevo
+  en_revision
+  asignado
+  en_gestion
+  esperando_documentacion
+  en_negociacion
+  judicializado
+  pausado
+  cerrado
+  archivado
+}
+
+enum CaseMateria {
+  laboral
+  salud
+  consumidor
+  sucesion
+  accidente
+  familia
+  previsional
+  civil
+}
+
+enum CasePriority {
+  urgente
+  alta
+  media
+  baja
+}
+
+enum TaskStatus {
+  pendiente
+  en_curso
+  completada
+  vencida
+}
+
+enum NoteType {
+  interna
+  estrategica
+  cliente
+  alerta
+}
+
+enum NoteVisibility {
+  todos
+  equipo
+  coordinadores
+}
+
+enum TimelineEventType {
+  creacion
+  asignacion
+  estado
+  documento
+  nota
+  hito
+  tarea
+  legal_intel
+  reasignacion
+}
+
+enum AlertType {
+  dormido
+  tarea_vencida
+  sin_asignar
+  vencimiento_proximo
+  urgente
+  documento_pendiente
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(abogado_interno)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedCases    Case[]          @relation("AssignedLawyer")
+  coordinatedCases Case[]          @relation("Coordinator")
+  tasks            Task[]
+  uploadedDocs     Document[]
+  notes            Note[]
+  timelineEvents   TimelineEvent[]
+  alerts           Alert[]
+
+  @@map("users")
+}
+
+model Client {
+  id       String  @id @default(uuid())
+  name     String
+  dni      String
+  phone    String?
+  email    String?
+  address  String?
+  city     String?
+  province String?
+  consent  Boolean @default(false)
+  notes    String?
+
+  cases     Case[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
+}
+
+model Case {
+  id             String       @id @default(uuid())
+  caseId         String       @unique
+  title          String
+  materia        CaseMateria
+  subtype        String
+  status         CaseStatus   @default(nuevo)
+  stage          String       @default("Ingreso")
+  priority       CasePriority @default(media)
+  channel        String       @default("web")
+  summary        String?
+  nextAction     String?
+  nextActionDate DateTime?
+  isDormant      Boolean      @default(false)
+  isUrgent       Boolean      @default(false)
+  lastActivity   DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  clientId         String
+  client           Client @relation(fields: [clientId], references: [id])
+  assignedLawyerId String?
+  assignedLawyer   User?  @relation("AssignedLawyer", fields: [assignedLawyerId], references: [id])
+  coordinatorId    String?
+  coordinator      User?  @relation("Coordinator", fields: [coordinatorId], references: [id])
+
+  tasks     Task[]
+  documents Document[]
+  notes     Note[]
+  timeline  TimelineEvent[]
+  alerts    Alert[]
+
+  @@map("cases")
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  priority    CasePriority @default(media)
+  status      TaskStatus   @default(pendiente)
+  stage       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  caseId       String
+  case         Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?  @relation(fields: [assignedToId], references: [id])
+
+  @@map("tasks")
+}
+
+model Document {
+  id                   String   @id @default(uuid())
+  name                 String
+  type                 String
+  size                 String?
+  stage                String?
+  linkedLegalIntel     Boolean  @default(false)
+  legalIntelDocumentId String?
+  createdAt            DateTime @default(now())
+
+  caseId       String
+  case         Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?  @relation(fields: [uploadedById], references: [id])
+
+  @@map("documents")
+}
+
+model Note {
+  id         String         @id @default(uuid())
+  content    String
+  type       NoteType       @default(interna)
+  visibility NoteVisibility @default(equipo)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  caseId   String
+  case     Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId String?
+  author   User?  @relation(fields: [authorId], references: [id])
+
+  @@map("notes")
+}
+
+model TimelineEvent {
+  id        String            @id @default(uuid())
+  action    String
+  detail    String?
+  type      TimelineEventType @default(nota)
+  createdAt DateTime          @default(now())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("timeline_events")
+}
+
+model Alert {
+  id         String    @id @default(uuid())
+  type       AlertType
+  message    String
+  resolved   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  caseId String?
+  case   Case?  @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("alerts")
+}
