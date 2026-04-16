@@ -8,6 +8,8 @@ const envSchema = z.object({
   LEGAL_INTEL_URL: z.string().url().optional(),
   DORMANT_DAYS_THRESHOLD: z.coerce.number().default(7),
   CORS_ORIGIN: z.string().default('*'),
+  // Shared secret entre Intake y CaseOps para el webhook (opcional en dev)
+  INTAKE_WEBHOOK_SECRET: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 

@@ -12,6 +12,7 @@ import documentRoutes from './routes/documents';
 import alertRoutes from './routes/alerts';
 import userRoutes from './routes/users';
 import legalIntelRoutes from './routes/legal-intel';
+import intakeRoutes from './routes/intake';
 import { startAlertsWorker } from './workers/alerts.worker';
 import { prisma } from './utils/prisma';
 
@@ -62,6 +63,7 @@ async function bootstrap() {
   await fastify.register(alertRoutes);
   await fastify.register(userRoutes);
   await fastify.register(legalIntelRoutes);
+  await fastify.register(intakeRoutes);
 
   // Start alerts worker
   startAlertsWorker();
