@@ -44,7 +44,7 @@ export const api = {
   cases: {
     list: (params?: Record<string, string>) => {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-      return request<{ data: any[]; total: number; page: number; limit: number }>(`/cases${qs}`);
+      return request<{ cases: any[]; total: number; page: number; limit: number }>(`/cases${qs}`);
     },
     get: (id: string) => request<any>(`/cases/${id}`),
     create: (data: any) => request<any>('/cases', { method: 'POST', body: JSON.stringify(data) }),

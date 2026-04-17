@@ -17,7 +17,7 @@ export default function CasosPage() {
 
   useEffect(() => {
     api.cases.list({ limit: '200' })
-      .then(res => setCases((res as any).data ?? []))
+      .then(res => setCases((res as any).cases ?? []))
       .catch(() => setCases([]))
       .finally(() => setLoading(false));
   }, []);

@@ -22,7 +22,7 @@ export default function Dashboard() {
       api.cases.list({ limit: '50' }).catch(() => ({ data: [] })),
       api.alerts.list().catch(() => []),
     ]).then(([casesRes, alertsRes]) => {
-      setCases((casesRes as any).data ?? []);
+      setCases((casesRes as any).cases ?? []);
       setAlerts(Array.isArray(alertsRes) ? alertsRes : []);
     }).finally(() => setLoading(false));
   }, []);
