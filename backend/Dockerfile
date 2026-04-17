@@ -6,7 +6,8 @@ RUN npm ci
 COPY prisma ./prisma
 RUN npx prisma generate
 COPY . .
-RUN npx tsup src/server.ts prisma/seed.ts --format cjs --out-dir dist --clean
+RUN npx tsup src/server.ts --format cjs --out-dir dist --clean
+RUN npx tsup prisma/seed.ts --format cjs --out-dir dist/seed-build --no-splitting
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -20,6 +21,6 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seed.js 2>/dev/null; node dist/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seed-build/seed.js 2>/dev/null; node dist/server.js"]
 
 EXPOSE 3001
