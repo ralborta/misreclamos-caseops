@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
+import TasksTab from './TasksTab';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, formatDateTime, timeAgo } from '../../utils';
 import type { CasePriority } from '../../types';
 import {
@@ -330,52 +331,7 @@ function TabResumen({ caso }: { caso: ReturnType<typeof mockCases.find> & object
 }
 
 function TabTareas({ caso }: { caso: any }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-900">Tareas del expediente</h3>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-600 text-white rounded-lg hover:bg-navy-700">
-          <Plus size={12} /> Nueva tarea
-        </button>
-      </div>
-      {caso.tasks.length === 0 ? (
-        <div className="py-12 text-center text-gray-400 text-sm">No hay tareas registradas para este caso.</div>
-      ) : (
-        <div className="divide-y divide-gray-50">
-          {caso.tasks.map((t: any) => {
-            const pc = priorityConfig[t.priority as CasePriority];
-            return (
-              <div key={t.id} className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                <button className="mt-0.5">
-                  {t.status === 'completada'
-                    ? <CheckCircle2 size={16} className="text-green-500" />
-                    : <Circle size={16} className="text-gray-300 hover:text-navy-400 transition-colors" />
-                  }
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${t.status === 'completada' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
-                  {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-[10px] text-gray-400">Asignado a: <span className="text-gray-600 font-medium">{t.assignedTo}</span></span>
-                    <span className="text-[10px] text-gray-400">Vence: {formatDate(t.dueDate)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[10px] font-semibold ${pc.color}`}>{pc.label}</span>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                    t.status === 'vencida' ? 'text-red-600 bg-red-50 border-red-200' :
-                    t.status === 'completada' ? 'text-green-600 bg-green-50 border-green-200' :
-                    t.status === 'en_curso' ? 'text-blue-600 bg-blue-50 border-blue-200' :
-                    'text-gray-600 bg-gray-50 border-gray-200'
-                  }`}>{t.status.replace('_', ' ')}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <TasksTab caseId={caso.id} caseTitle={caso.title} />;
 }
 
 function TabDocumentos({ caso }: { caso: any }) {

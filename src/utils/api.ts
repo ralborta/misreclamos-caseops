@@ -60,10 +60,12 @@ export const api = {
   },
 
   tasks: {
-    list: (caseId?: string) => {
-      const qs = caseId ? `?caseId=${caseId}` : '';
-      return request<any[]>(`/tasks${qs}`);
-    },
-    update: (id: string, data: any) => request<any>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    list: (caseId: string) => request<any[]>(`/cases/${caseId}/tasks`),
+    create: (caseId: string, data: any) =>
+      request<any>(`/cases/${caseId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (caseId: string, id: string, data: any) =>
+      request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (caseId: string, id: string) =>
+      request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'DELETE' }),
   },
 };
