@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockCases } from '../../data/mockData';
+import { api } from '../../utils/api';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, timeAgo } from '../../utils';
 import { Search, Plus, ChevronDown, AlertTriangle, Clock, UserCheck, ArrowUpDown } from 'lucide-react';
 
@@ -8,19 +8,28 @@ const ALL = '__all__';
 
 export default function CasosPage() {
   const navigate = useNavigate();
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [materia, setMateria] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
   const [priority, setPriority] = useState<string>(ALL);
 
-  const filtered = mockCases.filter(c => {
+  useEffect(() => {
+    api.cases.list({ limit: '200' })
+      .then(res => setCases((res as any).data ?? []))
+      .catch(() => setCases([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = cases.filter(c => {
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
       c.caseId.toLowerCase().includes(q) ||
       c.title.toLowerCase().includes(q) ||
-      c.client.name.toLowerCase().includes(q) ||
-      (c.assignedLawyer ?? '').toLowerCase().includes(q);
+      (c.client?.name ?? '').toLowerCase().includes(q) ||
+      (c.assignedLawyer?.name ?? '').toLowerCase().includes(q);
     const matchMateria = materia === ALL || c.materia === materia;
     const matchStatus = status === ALL || c.status === status;
     const matchPriority = priority === ALL || c.priority === priority;
@@ -78,9 +87,9 @@ export default function CasosPage() {
       {/* Quick filters pills */}
       <div className="flex gap-2">
         {[
-          { label: 'Urgentes', icon: AlertTriangle, count: mockCases.filter(c => c.isUrgent).length, color: 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100' },
-          { label: 'Dormidos', icon: Clock, count: mockCases.filter(c => c.isDormant).length, color: 'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100' },
-          { label: 'Sin asignar', icon: UserCheck, count: mockCases.filter(c => !c.assignedLawyer).length, color: 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100' },
+          { label: 'Urgentes',   icon: AlertTriangle, count: cases.filter(c => c.isUrgent).length,            color: 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100' },
+          { label: 'Dormidos',   icon: Clock,         count: cases.filter(c => c.isDormant).length,           color: 'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100' },
+          { label: 'Sin asignar',icon: UserCheck,     count: cases.filter(c => !c.assignedLawyerId).length,   color: 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100' },
         ].map(p => (
           <button key={p.label} className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold border rounded-full transition-colors ${p.color}`}>
             <p.icon size={11} />
@@ -102,10 +111,18 @@ export default function CasosPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {filtered.map(c => {
-              const sc = statusConfig[c.status];
-              const pc = priorityConfig[c.priority];
-              const mc = materiaConfig[c.materia];
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={7} className="px-5 py-3">
+                    <div className="h-4 bg-gray-100 rounded animate-pulse w-full" />
+                  </td>
+                </tr>
+              ))
+            ) : filtered.map(c => {
+              const sc = statusConfig[c.status as keyof typeof statusConfig] ?? { label: c.status, bg: 'bg-gray-50', color: 'text-gray-600' };
+              const pc = priorityConfig[c.priority as keyof typeof priorityConfig] ?? { dot: 'bg-gray-400', color: 'text-gray-600', label: c.priority };
+              const mc = materiaConfig[c.materia as keyof typeof materiaConfig] ?? { icon: '', label: c.materia };
               return (
                 <tr
                   key={c.id}
@@ -122,7 +139,7 @@ export default function CasosPage() {
                           {c.isDormant && <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 rounded-full">DORMIDO</span>}
                         </div>
                         <p className="font-medium text-gray-800 max-w-xs group-hover:text-navy-600 transition-colors line-clamp-1">{c.title}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">{c.client.name}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{c.client?.name}</p>
                       </div>
                     </div>
                   </td>
@@ -139,7 +156,7 @@ export default function CasosPage() {
                   </td>
                   <td className="px-4 py-3">
                     {c.assignedLawyer ? (
-                      <span className="text-xs text-gray-700">{c.assignedLawyer}</span>
+                      <span className="text-xs text-gray-700">{c.assignedLawyer.name}</span>
                     ) : (
                       <span className="text-xs text-orange-500 font-medium">Sin asignar</span>
                     )}
@@ -163,8 +180,10 @@ export default function CasosPage() {
             })}
           </tbody>
         </table>
-        {filtered.length === 0 && (
-          <div className="py-16 text-center text-gray-400 text-sm">No se encontraron casos con esos filtros.</div>
+        {!loading && filtered.length === 0 && (
+          <div className="py-16 text-center text-gray-400 text-sm">
+            {cases.length === 0 ? 'No hay casos aún. Los casos llegarán desde MisReclamos Intake.' : 'No se encontraron casos con esos filtros.'}
+          </div>
         )}
       </div>
     </div>
