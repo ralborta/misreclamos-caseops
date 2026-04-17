@@ -66,6 +66,6 @@ export const api = {
     update: (caseId: string, id: string, data: any) =>
       request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     generate: (caseId: string) =>
-      request<any[]>(`/cases/${caseId}/tasks/generate`, { method: 'POST' }),
+      request<any[]>(`/cases/${caseId}/tasks/generate`, { method: 'POST', body: JSON.stringify({}) }),
   },
 };
