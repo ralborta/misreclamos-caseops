@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockCases } from '../../data/mockData';
+import { api } from '../../utils/api';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, formatDateTime, timeAgo } from '../../utils';
 import type { CasePriority } from '../../types';
 import {
@@ -16,8 +16,21 @@ export default function ExpedientePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
+  const [caso, setCaso] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const caso = mockCases.find(c => c.id === id);
+  useEffect(() => {
+    if (!id) return;
+    api.cases.get(id)
+      .then(data => setCaso(data))
+      .catch(() => setCaso(null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Cargando expediente...</div>
+  );
+
   if (!caso) return (
     <div className="flex flex-col items-center justify-center h-64 text-gray-400">
       <p className="text-lg font-medium">Caso no encontrado</p>
