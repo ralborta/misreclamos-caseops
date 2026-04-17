@@ -23,7 +23,32 @@ const fastify = Fastify({
   },
 });
 
+async function runSeedIfNeeded() {
+  try {
+    const count = await prisma.user.count();
+    if (count === 0) {
+      const bcrypt = await import('bcryptjs');
+      const adminHash = await bcrypt.hash('Admin123!', 12);
+      const admin = await prisma.user.create({ data: { email: 'admin@misreclamos.com', passwordHash: adminHash, name: 'Admin Sistema', role: 'admin' } });
+      const coordHash = await bcrypt.hash('Coord123!', 12);
+      const coord = await prisma.user.create({ data: { email: 'cmendez@misreclamos.com', passwordHash: coordHash, name: 'Lic. Carolina Méndez', role: 'coordinador' } });
+      const abogadoHash = await bcrypt.hash('Abogado123!', 12);
+      const rios = await prisma.user.create({ data: { email: 'mrios@misreclamos.com', passwordHash: abogadoHash, name: 'Dr. Martín Ríos', role: 'abogado_interno' } });
+      await prisma.user.create({ data: { email: 'vsousa@misreclamos.com', passwordHash: abogadoHash, name: 'Dra. Valeria Sousa', role: 'abogado_interno' } });
+      await prisma.user.create({ data: { email: 'spereyra@misreclamos.com', passwordHash: abogadoHash, name: 'Dr. Santiago Pereyra', role: 'abogado_asociado' } });
+      const client = await prisma.client.create({ data: { name: 'Roberto García', dni: '28.451.892', phone: '+54 11 4521-8870', email: 'rgarcia@gmail.com', city: 'CABA', province: 'Buenos Aires', consent: true } });
+      const caso = await prisma.case.create({ data: { caseId: 'MR-2024-00341', title: 'Despido sin causa — García vs. Logística Norte S.A.', materia: 'laboral', subtype: 'Despido incausado', status: 'en_gestion', stage: 'Intercambio telegráfico', priority: 'alta', channel: 'web', isUrgent: true, clientId: client.id, assignedLawyerId: rios.id, coordinatorId: coord.id } });
+      await prisma.timelineEvent.create({ data: { caseId: caso.id, userId: admin.id, action: 'Expediente creado desde seed inicial', type: 'creacion' } });
+      console.log('✅ Seed inicial completado — admin@misreclamos.com / Admin123!');
+    }
+  } catch (e) {
+    console.error('Seed error (non-fatal):', e);
+  }
+}
+
 async function bootstrap() {
+  await runSeedIfNeeded();
+
   // Plugins
   await fastify.register(corsPlugin);
   await fastify.register(authPlugin);
