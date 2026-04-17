@@ -1,12 +1,15 @@
 import fp from 'fastify-plugin';
 import fastifyCors from '@fastify/cors';
-import { config } from '../config';
 import type { FastifyPluginAsync } from 'fastify';
 
 const corsPlugin: FastifyPluginAsync = async (fastify) => {
   await fastify.register(fastifyCors, {
-    origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(','),
+    origin: true,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-intake-secret'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 };
 
