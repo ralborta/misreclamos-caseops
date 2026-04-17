@@ -10,6 +10,7 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   // Shared secret entre Intake y CaseOps para el webhook (opcional en dev)
   INTAKE_WEBHOOK_SECRET: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 

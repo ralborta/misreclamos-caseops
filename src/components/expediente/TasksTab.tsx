@@ -4,7 +4,7 @@ import { api } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import {
   Plus, CheckCircle2, Circle, Clock, AlertTriangle, Calendar,
-  Trash2, ChevronDown, ChevronUp, X, ExternalLink,
+  Trash2, X, ExternalLink, Sparkles,
 } from 'lucide-react';
 
 // Tipos de hito jurídico predefinidos por categoría
@@ -99,7 +99,8 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState<'list' | 'timeline'>('timeline');
-  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [preview, setPreview] = useState<any[] | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -118,6 +119,24 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
       .catch(() => setTasks([]))
       .finally(() => setLoading(false));
   }, [caseId]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const generated = await api.tasks.generate(caseId);
+      setPreview(generated);
+    } catch (err: any) {
+      alert(err.message || 'Error al generar el cronograma');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const confirmPreview = () => {
+    if (!preview) return;
+    setTasks(prev => [...prev, ...preview].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+    setPreview(null);
+  };
 
   const handleCreate = async (e: any) => {
     e.preventDefault();
@@ -176,12 +195,22 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 hover:bg-navy-800 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <Plus size={14} strokeWidth={2.5} /> Nueva tarea
-        </button>
+      <div className="flex items-center gap-2">
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Sparkles size={14} />
+            {generating ? 'Analizando con IA...' : 'Generar con Gemini'}
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 hover:bg-navy-800 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.5} /> Nueva tarea
+          </button>
+        </div>
       </div>
 
       {/* Modal formulario */}
@@ -298,6 +327,54 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal preview Gemini */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Sparkles size={16} className="text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Cronograma generado por Gemini</h3>
+                <p className="text-xs text-gray-500">{preview.length} tareas procesales sugeridas — revisá y confirmá</p>
+              </div>
+              <button onClick={() => setPreview(null)} className="ml-auto text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-50">
+              {preview.map((t, i) => {
+                const pc = PRIORITY_CONFIG[t.priority] ?? PRIORITY_CONFIG.media;
+                return (
+                  <div key={i} className="px-6 py-4 flex items-start gap-4">
+                    <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-xs font-bold text-purple-600 shrink-0 mt-0.5">{i + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`text-[10px] font-bold border rounded-full px-2 py-0.5 ${pc.bg} ${pc.color} ${pc.border}`}>{pc.label}</span>
+                        <span className="text-[10px] text-gray-400">
+                          {formatDateTime(new Date(Date.now() + t.daysFromNow * 86400000).toISOString())}
+                        </span>
+                      </div>
+                      <p className="font-semibold text-gray-800 text-sm">{t.title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              <button onClick={() => setPreview(null)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                Descartar
+              </button>
+              <button onClick={confirmPreview} className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700">
+                Confirmar y crear {preview.length} tareas
+              </button>
+            </div>
           </div>
         </div>
       )}

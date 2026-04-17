@@ -65,7 +65,7 @@ export const api = {
       request<any>(`/cases/${caseId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
     update: (caseId: string, id: string, data: any) =>
       request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    remove: (caseId: string, id: string) =>
-      request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'DELETE' }),
+    generate: (caseId: string) =>
+      request<any[]>(`/cases/${caseId}/tasks/generate`, { method: 'POST' }),
   },
 };
