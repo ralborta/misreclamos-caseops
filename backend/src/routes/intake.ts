@@ -48,12 +48,12 @@ const intakeWebhookSchema = z.object({
   // Datos del cliente
   customer: z.object({
     name:     z.string().min(1),
-    phone:    z.string().optional(),
-    email:    z.string().email().optional().or(z.literal('')),
-    dni:      z.string().optional(),
-    address:  z.string().optional(),
-    city:     z.string().optional(),
-    province: z.string().optional(),
+    phone:    z.string().nullable().optional(),
+    email:    z.string().email().nullable().optional().or(z.literal('')),
+    dni:      z.string().nullable().optional(),
+    address:  z.string().nullable().optional(),
+    city:     z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
   }),
 
   // Contexto adicional del bot (opcional)
