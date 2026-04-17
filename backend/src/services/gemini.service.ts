@@ -112,7 +112,7 @@ export async function generateTaskSchedule(caseData: {
     throw new Error('GEMINI_API_KEY no configurada');
   }
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const materiaHint = MATERIA_HINTS[caseData.materia] || '';
 
