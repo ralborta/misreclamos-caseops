@@ -1,4 +1,4 @@
-# Build stage
+# Build stage — Prisma v5
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
