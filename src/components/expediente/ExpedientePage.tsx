@@ -5,6 +5,7 @@ import { api } from '../../utils/api';
 import TasksTab from './TasksTab';
 import DocumentsTab from './DocumentsTab';
 import NotesTab from './NotesTab';
+import LegalIntelTab from './LegalIntelTab';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, formatDateTime, timeAgo } from '../../utils';
 import type { CasePriority } from '../../types';
 import {
@@ -188,7 +189,7 @@ export default function ExpedientePage() {
               onAutoOpenConsumed={() => setOpenNoteModal(false)}
             />
           )}
-          {activeTab === 5 && <TabLegalIntel caso={caso} />}
+          {activeTab === 5 && <LegalIntelTab caso={caso} caseId={caso.id} onRefresh={refreshCaso} />}
         </div>
 
         {/* Sidebar info */}
@@ -418,39 +419,3 @@ function TabTimeline({ caso }: { caso: any }) {
   );
 }
 
-function TabLegalIntel({ caso }: { caso: any }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-navy-900 to-navy-700 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center">
-            <Zap size={16} className="text-brand-orange" />
-          </div>
-          <div>
-            <h3 className="text-white font-semibold text-sm">Legal Intelligence</h3>
-            <p className="text-navy-200 text-[11px]">Asistente jurídico especializado para este expediente</p>
-          </div>
-        </div>
-      </div>
-      <div className="p-5 space-y-3">
-        {[
-          { icon: FileText, label: 'Analizar documento', desc: 'Subí un documento y obtené análisis jurídico inmediato' },
-          { icon: Edit2, label: 'Generar escrito', desc: 'Creá borradores de telegramas, demandas, amparos y más' },
-          { icon: MessageSquare, label: 'Consultar sobre el caso', desc: 'Hacé preguntas sobre el expediente con contexto completo' },
-          { icon: Activity, label: 'Ver análisis previos', desc: `${caso.documents.filter((d: any) => d.linkedLegalIntel).length} documento(s) ya analizados` },
-        ].map(a => (
-          <button key={a.label} className="w-full flex items-start gap-3 px-4 py-3.5 text-left rounded-xl border border-gray-200 hover:border-navy-300 hover:bg-navy-50 transition-all group">
-            <div className="w-8 h-8 rounded-lg bg-navy-100 flex items-center justify-center shrink-0 group-hover:bg-navy-200 transition-colors">
-              <a.icon size={15} className="text-navy-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800 group-hover:text-navy-700">{a.label}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">{a.desc}</p>
-            </div>
-            <ChevronRight size={14} className="text-gray-400 ml-auto mt-1 group-hover:text-navy-500" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

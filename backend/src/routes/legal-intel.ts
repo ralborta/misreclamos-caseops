@@ -1,10 +1,32 @@
 import type { FastifyPluginAsync } from 'fastify';
+import multipart from '@fastify/multipart';
 import { z } from 'zod';
 import { legalIntelService } from '../services/legal-intel.service';
 import { requireLawyerOrAbove } from '../middleware/roles';
 
 const legalIntelRoutes: FastifyPluginAsync = async (fastify) => {
+  await fastify.register(multipart, { limits: { fileSize: 32 * 1024 * 1024 } });
+
   const auth = { preHandler: [fastify.authenticate, requireLawyerOrAbove()] };
+
+  /** Reenvía un archivo al servicio Legal Intel (LEGAL_INTEL_URL) — mismo contrato que /legal/upload */
+  fastify.post('/legal-intel/upload', auth, async (request, reply) => {
+    const file = await request.file();
+    if (!file) {
+      return reply.code(400).send({ error: 'Archivo requerido (campo "file")' });
+    }
+    const buffer = await file.toBuffer();
+    const formData = new FormData();
+    const u8 = new Uint8Array(buffer);
+    formData.append('file', new Blob([u8], { type: file.mimetype || 'application/octet-stream' }), file.filename);
+    try {
+      const result = await legalIntelService.uploadDocument(formData);
+      return result;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return reply.code(502).send({ error: msg });
+    }
+  });
 
   // POST /legal-intel/generate
   fastify.post('/legal-intel/generate', auth, async (request) => {

@@ -4,6 +4,29 @@ function getToken(): string | null {
   return localStorage.getItem('caseops_token');
 }
 
+async function requestFormData<T>(path: string, formData: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('caseops_token');
+    localStorage.removeItem('caseops_user');
+    window.location.href = '/login';
+    throw new Error('No autorizado');
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || err.error || 'Error en la solicitud');
+  }
+
+  return res.json();
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -83,8 +106,31 @@ export const api = {
   documents: {
     create: (caseId: string, data: { name: string; type: string; size?: string; stage?: string }) =>
       request<any>(`/cases/${caseId}/documents`, { method: 'POST', body: JSON.stringify(data) }),
+    analyze: (caseId: string, documentId: string, data: { legalIntelDocumentId: string; instructions?: string }) =>
+      request<any>(`/cases/${caseId}/documents/${documentId}/analyze`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     remove: (caseId: string, id: string) =>
       request<{ ok: boolean }>(`/cases/${caseId}/documents/${id}`, { method: 'DELETE' }),
+  },
+
+  legalIntel: {
+    upload: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return requestFormData<unknown>('/legal-intel/upload', fd);
+    },
+    generate: (data: {
+      type: 'dictamen' | 'contrato' | 'memo' | 'escrito';
+      title: string;
+      instructions: string;
+      knowledgeBases?: string[];
+    }) => request<unknown>('/legal-intel/generate', { method: 'POST', body: JSON.stringify(data) }),
+    query: (data: { documentId: string; query: string }) =>
+      request<unknown>('/legal-intel/query', { method: 'POST', body: JSON.stringify(data) }),
+    status: (liDocumentId: string) => request<unknown>(`/legal-intel/status/${encodeURIComponent(liDocumentId)}`),
+    result: (liDocumentId: string) => request<unknown>(`/legal-intel/result/${encodeURIComponent(liDocumentId)}`),
   },
 
   tasks: {
