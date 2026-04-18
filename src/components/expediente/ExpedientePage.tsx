@@ -379,10 +379,16 @@ function TabDocumentos({ caso }: { caso: any }) {
   );
 }
 
+function timelineUserLabel(e: { user?: { name?: string } | null; userId?: string | null }) {
+  if (e.user && typeof e.user === 'object' && 'name' in e.user && e.user.name) return e.user.name;
+  return 'Sistema';
+}
+
 function TabTimeline({ caso }: { caso: any }) {
   const typeConfig: Record<string, { color: string; bg: string }> = {
     creacion: { color: 'text-blue-600', bg: 'bg-blue-100' },
     asignacion: { color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    reasignacion: { color: 'text-indigo-600', bg: 'bg-indigo-100' },
     estado: { color: 'text-purple-600', bg: 'bg-purple-100' },
     documento: { color: 'text-navy-600', bg: 'bg-navy-100' },
     nota: { color: 'text-gray-600', bg: 'bg-gray-100' },
@@ -391,14 +397,22 @@ function TabTimeline({ caso }: { caso: any }) {
     legal_intel: { color: 'text-amber-600', bg: 'bg-amber-100' },
   };
 
+  const raw = Array.isArray(caso.timeline) ? caso.timeline : [];
+  const events = [...raw].reverse();
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <h3 className="text-sm font-semibold text-gray-900 mb-5">Historial del expediente</h3>
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-100" />
+        {events.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No hay eventos en el historial todavía.</p>
+        ) : (
         <div className="space-y-5">
-          {[...caso.timeline].reverse().map((e: any) => {
+          {events.map((e: any) => {
             const tc = typeConfig[e.type] ?? typeConfig.nota;
+            const when = e.createdAt ?? e.date;
+            const who = typeof e.user === 'string' ? e.user : timelineUserLabel(e);
             return (
               <div key={e.id} className="flex items-start gap-4 pl-1">
                 <div className={`relative z-10 w-6 h-6 rounded-full ${tc.bg} flex items-center justify-center shrink-0 mt-0.5`}>
@@ -407,15 +421,16 @@ function TabTimeline({ caso }: { caso: any }) {
                 <div className="flex-1 pb-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-gray-800">{e.action}</p>
-                    <span className="text-[10px] text-gray-400 shrink-0">{formatDateTime(e.date)}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0">{when ? formatDateTime(when) : '—'}</span>
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5">{e.user}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{who}</p>
                   {e.detail && <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-3 py-2">{e.detail}</p>}
                 </div>
               </div>
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );
