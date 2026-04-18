@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import TasksTab from './TasksTab';
 import DocumentsTab from './DocumentsTab';
 import NotesTab from './NotesTab';
@@ -12,7 +13,7 @@ import {
   ArrowLeft, AlertTriangle, Clock, User, Calendar, FileText,
   MessageSquare, CheckSquare, Activity, Zap, MoreHorizontal,
   Upload, Plus, ChevronRight, CheckCircle2, Circle, Shield,
-  Phone, Mail, MapPin, Tag, Edit2,
+  Phone, Mail, MapPin, Tag, Edit2, Copy, Filter, Archive,
 } from 'lucide-react';
 
 const tabs = ['Resumen', 'Tareas', 'Documentos', 'Timeline', 'Notas', 'Legal Intel'];
@@ -20,13 +21,69 @@ const tabs = ['Resumen', 'Tareas', 'Documentos', 'Timeline', 'Notas', 'Legal Int
 export default function ExpedientePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [caso, setCaso] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openDocUpload, setOpenDocUpload] = useState(false);
   const [openNoteModal, setOpenNoteModal] = useState(false);
+  const [caseMenuOpen, setCaseMenuOpen] = useState(false);
+  const caseMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshCaso = () => (id ? api.cases.get(id).then(setCaso) : Promise.resolve());
+
+  const canArchive = user && ['admin', 'coordinador'].includes(user.role);
+
+  useEffect(() => {
+    if (!caseMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (caseMenuRef.current && !caseMenuRef.current.contains(e.target as Node)) setCaseMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [caseMenuOpen]);
+
+  const copyCaseSummary = async () => {
+    const lines = [
+      caso.caseId,
+      caso.title,
+      caso.client?.name ? `Cliente: ${caso.client.name}` : null,
+    ].filter(Boolean).join('\n');
+    try {
+      await navigator.clipboard.writeText(lines);
+      alert('Datos del expediente copiados al portapapeles.');
+    } catch {
+      window.prompt('Copiá este texto:', lines);
+    }
+    setCaseMenuOpen(false);
+  };
+
+  const toggleUrgent = async () => {
+    try {
+      const updated = await api.cases.update(caso.id, { isUrgent: !caso.isUrgent });
+      setCaso(updated);
+    } catch (e: any) {
+      alert(e?.message || 'No se pudo actualizar');
+    }
+    setCaseMenuOpen(false);
+  };
+
+  const goFilteredInbox = () => {
+    const q = new URLSearchParams({ materia: caso.materia, status: caso.status });
+    navigate(`/casos?${q.toString()}`);
+    setCaseMenuOpen(false);
+  };
+
+  const archiveCase = async () => {
+    if (!confirm('¿Archivar este expediente? Quedará en estado archivado.')) return;
+    try {
+      await api.cases.archive(caso.id);
+      navigate('/casos');
+    } catch (e: any) {
+      alert(e?.message || 'No se pudo archivar (¿permisos?)');
+    }
+    setCaseMenuOpen(false);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -99,12 +156,70 @@ export default function ExpedientePage() {
               <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
                 <Edit2 size={13} /> Editar
               </button>
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-brand-orange rounded-lg hover:bg-brand-orange-dark transition-colors">
+              <button
+                type="button"
+                onClick={() => setActiveTab(5)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-brand-orange rounded-lg hover:bg-brand-orange-dark transition-colors"
+              >
                 <Zap size={13} /> Legal Intel
               </button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                <MoreHorizontal size={15} className="text-gray-500" />
-              </button>
+              <div className="relative" ref={caseMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setCaseMenuOpen((o) => !o)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                  aria-expanded={caseMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Más acciones del expediente"
+                >
+                  <MoreHorizontal size={15} className="text-gray-500" />
+                </button>
+                {caseMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-1 w-60 rounded-xl border border-gray-200 bg-white shadow-lg z-50 py-1 text-sm"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={copyCaseSummary}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-gray-700 hover:bg-gray-50"
+                    >
+                      <Copy size={14} className="text-gray-400 shrink-0" />
+                      <span>Copiar datos del expediente</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={toggleUrgent}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-gray-700 hover:bg-gray-50"
+                    >
+                      <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                      <span>{caso.isUrgent ? 'Quitar urgente' : 'Marcar como urgente'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={goFilteredInbox}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-gray-700 hover:bg-gray-50"
+                    >
+                      <Filter size={14} className="text-gray-400 shrink-0" />
+                      <span>Ver en bandeja (misma materia y estado)</span>
+                    </button>
+                    {canArchive && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={archiveCase}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-red-700 hover:bg-red-50 border-t border-gray-100"
+                      >
+                        <Archive size={14} className="shrink-0" />
+                        <span>Archivar expediente</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

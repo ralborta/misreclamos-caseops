@@ -1,19 +1,36 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, timeAgo } from '../../utils';
 import { Search, Plus, ChevronDown, AlertTriangle, Clock, UserCheck, ArrowUpDown } from 'lucide-react';
 
 const ALL = '__all__';
 
+const MATERIAS = ['laboral', 'salud', 'consumidor', 'sucesion', 'accidente', 'familia', 'previsional', 'civil'] as const;
+const STATUSES = [
+  'nuevo', 'en_revision', 'asignado', 'en_gestion', 'esperando_documentacion',
+  'en_negociacion', 'judicializado', 'pausado', 'cerrado', 'archivado',
+] as const;
+const PRIOS = ['urgente', 'alta', 'media', 'baja'] as const;
+
 export default function CasosPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [materia, setMateria] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
   const [priority, setPriority] = useState<string>(ALL);
+
+  useEffect(() => {
+    const m = searchParams.get('materia');
+    const s = searchParams.get('status');
+    const p = searchParams.get('priority');
+    if (m && (MATERIAS as readonly string[]).includes(m)) setMateria(m);
+    if (s && (STATUSES as readonly string[]).includes(s)) setStatus(s);
+    if (p && (PRIOS as readonly string[]).includes(p)) setPriority(p);
+  }, [searchParams]);
 
   useEffect(() => {
     api.cases.list({ limit: '200' })
