@@ -65,6 +65,11 @@ const taskRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (body.status === 'completada') {
       await recordEvent({ caseId, userId: request.user.id, action: `Tarea completada: "${task.title}"`, type: 'tarea' });
+      const doneAt = new Date();
+      await prisma.alert.updateMany({
+        where: { id: { in: [`task-overdue-${id}`, `task-upcoming-${id}`] } },
+        data: { resolved: true, resolvedAt: doneAt },
+      });
     }
 
     return task;

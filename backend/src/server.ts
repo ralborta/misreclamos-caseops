@@ -13,6 +13,7 @@ import alertRoutes from './routes/alerts';
 import userRoutes from './routes/users';
 import legalIntelRoutes from './routes/legal-intel';
 import intakeRoutes from './routes/intake';
+import agendaRoutes from './routes/agenda';
 import { startAlertsWorker } from './workers/alerts.worker';
 import { prisma } from './utils/prisma';
 
@@ -86,6 +87,7 @@ async function bootstrap() {
   await fastify.register(noteRoutes);
   await fastify.register(documentRoutes);
   await fastify.register(alertRoutes);
+  await fastify.register(agendaRoutes);
   await fastify.register(userRoutes);
   await fastify.register(legalIntelRoutes);
   await fastify.register(intakeRoutes);

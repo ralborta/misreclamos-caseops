@@ -82,6 +82,7 @@ enum TimelineEventType {
 enum AlertType {
   dormido
   tarea_vencida
+  tarea_proxima
   sin_asignar
   vencimiento_proximo
   urgente

@@ -101,6 +101,7 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
   const [view, setView] = useState<'list' | 'timeline'>('timeline');
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -132,10 +133,15 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
     }
   };
 
-  const confirmPreview = () => {
+  const confirmPreview = async () => {
     if (!preview) return;
-    setTasks(prev => [...prev, ...preview].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
     setPreview(null);
+    try {
+      const fresh = await api.tasks.list(caseId);
+      setTasks(fresh);
+    } catch {
+      setTasks((prev) => [...prev, ...preview].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+    }
   };
 
   const handleCreate = async (e: any) => {
@@ -166,7 +172,9 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
     try {
       const updated = await api.tasks.update(caseId, task.id, { status: newStatus });
       setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
-    } catch {}
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo actualizar el estado de la tarea');
+    }
   };
 
   const removeTask = async (taskId: string) => {
@@ -454,11 +462,12 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
                               <Trash2 size={13} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => toggleStatus(task)}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"
                               title="Marcar como completada"
                             >
-                              <Circle size={16} />
+                              <CheckCircle2 size={18} className="text-gray-300 hover:text-green-500" strokeWidth={2} />
                             </button>
                           </div>
                         </div>

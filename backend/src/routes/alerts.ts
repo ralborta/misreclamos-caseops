@@ -44,13 +44,21 @@ const alertRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /alerts/summary — para el dashboard
   fastify.get('/alerts/summary', auth, async () => {
-    const [dormidos, tareasVencidas, sinAsignar, vencimientosProximos] = await Promise.all([
+    const [dormidos, tareasVencidas, tareasProximas, sinAsignar, vencimientosProximos] = await Promise.all([
       prisma.alert.count({ where: { type: 'dormido', resolved: false } }),
       prisma.alert.count({ where: { type: 'tarea_vencida', resolved: false } }),
+      prisma.alert.count({ where: { type: 'tarea_proxima', resolved: false } }),
       prisma.alert.count({ where: { type: 'sin_asignar', resolved: false } }),
       prisma.alert.count({ where: { type: 'vencimiento_proximo', resolved: false } }),
     ]);
-    return { dormidos, tareasVencidas, sinAsignar, vencimientosProximos, total: dormidos + tareasVencidas + sinAsignar + vencimientosProximos };
+    return {
+      dormidos,
+      tareasVencidas,
+      tareasProximas,
+      sinAsignar,
+      vencimientosProximos,
+      total: dormidos + tareasVencidas + tareasProximas + sinAsignar + vencimientosProximos,
+    };
   });
 };
 

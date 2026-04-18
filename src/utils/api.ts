@@ -56,8 +56,20 @@ export const api = {
   },
 
   alerts: {
-    list: () => request<any[]>('/alerts'),
+    list: () =>
+      request<{ alerts: any[]; total: number }>('/alerts').then((r) => r.alerts),
+    resolve: (id: string) =>
+      request<any>(`/alerts/${id}/resolve`, { method: 'PATCH', body: JSON.stringify({}) }),
   },
+
+  agenda: () =>
+    request<{
+      weekStart: string;
+      weekEnd: string;
+      tasksInWeek: any[];
+      upcomingSoon: any[];
+      overdueOpen: any[];
+    }>('/agenda'),
 
   tasks: {
     list: (caseId: string) => request<any[]>(`/cases/${caseId}/tasks`),
@@ -65,6 +77,8 @@ export const api = {
       request<any>(`/cases/${caseId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
     update: (caseId: string, id: string, data: any) =>
       request<any>(`/cases/${caseId}/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (caseId: string, id: string) =>
+      request<{ ok: boolean }>(`/cases/${caseId}/tasks/${id}`, { method: 'DELETE' }),
     generate: (caseId: string) =>
       request<any[]>(`/cases/${caseId}/tasks/generate`, { method: 'POST', body: JSON.stringify({}) }),
   },
