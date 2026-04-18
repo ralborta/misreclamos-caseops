@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
 import TasksTab from './TasksTab';
 import DocumentsTab from './DocumentsTab';
+import NotesTab from './NotesTab';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, formatDateTime, timeAgo } from '../../utils';
 import type { CasePriority } from '../../types';
 import {
@@ -22,6 +23,7 @@ export default function ExpedientePage() {
   const [caso, setCaso] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openDocUpload, setOpenDocUpload] = useState(false);
+  const [openNoteModal, setOpenNoteModal] = useState(false);
 
   const refreshCaso = () => (id ? api.cases.get(id).then(setCaso) : Promise.resolve());
 
@@ -177,7 +179,15 @@ export default function ExpedientePage() {
             />
           )}
           {activeTab === 3 && <TabTimeline caso={caso} />}
-          {activeTab === 4 && <TabNotas caso={caso} />}
+          {activeTab === 4 && (
+            <NotesTab
+              caseId={caso.id}
+              notes={caso.notes ?? []}
+              onRefresh={refreshCaso}
+              autoOpen={openNoteModal}
+              onAutoOpenConsumed={() => setOpenNoteModal(false)}
+            />
+          )}
           {activeTab === 5 && <TabLegalIntel caso={caso} />}
         </div>
 
@@ -220,7 +230,7 @@ export default function ExpedientePage() {
               {[
                 { icon: Plus, label: 'Nueva tarea', color: 'text-navy-600', action: () => setActiveTab(1) },
                 { icon: Upload, label: 'Subir documento', color: 'text-navy-600', action: () => { setActiveTab(2); setOpenDocUpload(true); } },
-                { icon: MessageSquare, label: 'Agregar nota', color: 'text-navy-600', action: () => setActiveTab(4) },
+                { icon: MessageSquare, label: 'Agregar nota', color: 'text-navy-600', action: () => { setActiveTab(4); setOpenNoteModal(true); } },
                 { icon: Zap, label: 'Consultar Legal Intel', color: 'text-brand-orange', action: () => setActiveTab(5) },
               ].map((a) => (
                 <button
@@ -402,49 +412,6 @@ function TabTimeline({ caso }: { caso: any }) {
             );
           })}
         </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TabNotas({ caso }: { caso: any }) {
-  const typeStyle: Record<string, string> = {
-    interna: 'bg-gray-50 border-gray-200',
-    estrategica: 'bg-navy-50 border-navy-200',
-    cliente: 'bg-blue-50 border-blue-200',
-    alerta: 'bg-red-50 border-red-200',
-  };
-  return (
-    <div className="space-y-3">
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">Notas internas</h3>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-600 text-white rounded-lg hover:bg-navy-700">
-            <Plus size={12} /> Agregar nota
-          </button>
-        </div>
-        {caso.notes.length === 0 ? (
-          <div className="py-10 text-center text-gray-400 text-sm">No hay notas para este expediente.</div>
-        ) : (
-          <div className="space-y-3">
-            {caso.notes.map((n: any) => (
-              <div key={n.id} className={`rounded-xl border p-4 ${typeStyle[n.type] ?? typeStyle.interna}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      n.type === 'estrategica' ? 'text-navy-700 bg-navy-100' :
-                      n.type === 'alerta' ? 'text-red-700 bg-red-100' :
-                      'text-gray-600 bg-gray-200'
-                    }`}>{n.type}</span>
-                    <span className="text-[11px] text-gray-500 font-medium">{n.author}</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400">{formatDateTime(n.date)}</span>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{n.content}</p>
-              </div>
-            ))}
-          </div>
         )}
       </div>
     </div>

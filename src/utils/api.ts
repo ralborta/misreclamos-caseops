@@ -24,7 +24,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || 'Error en la solicitud');
+    throw new Error(err.message || err.error || 'Error en la solicitud');
   }
 
   return res.json();
@@ -70,6 +70,15 @@ export const api = {
       upcomingSoon: any[];
       overdueOpen: any[];
     }>('/agenda'),
+
+  notes: {
+    create: (caseId: string, data: { content: string; type?: string; visibility?: string }) =>
+      request<any>(`/cases/${caseId}/notes`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (caseId: string, id: string, data: { content: string }) =>
+      request<any>(`/cases/${caseId}/notes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (caseId: string, id: string) =>
+      request<{ ok: boolean }>(`/cases/${caseId}/notes/${id}`, { method: 'DELETE' }),
+  },
 
   documents: {
     create: (caseId: string, data: { name: string; type: string; size?: string; stage?: string }) =>
