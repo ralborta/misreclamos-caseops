@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
 import TasksTab from './TasksTab';
+import DocumentsTab from './DocumentsTab';
 import { statusConfig, priorityConfig, materiaConfig, formatDate, formatDateTime, timeAgo } from '../../utils';
 import type { CasePriority } from '../../types';
 import {
@@ -20,6 +21,9 @@ export default function ExpedientePage() {
   const [activeTab, setActiveTab] = useState(0);
   const [caso, setCaso] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [openDocUpload, setOpenDocUpload] = useState(false);
+
+  const refreshCaso = () => (id ? api.cases.get(id).then(setCaso) : Promise.resolve());
 
   useEffect(() => {
     if (!id) return;
@@ -163,7 +167,15 @@ export default function ExpedientePage() {
         <div className="col-span-2">
           {activeTab === 0 && <TabResumen caso={caso} />}
           {activeTab === 1 && <TabTareas caso={caso} />}
-          {activeTab === 2 && <TabDocumentos caso={caso} />}
+          {activeTab === 2 && (
+            <DocumentsTab
+              caseId={caso.id}
+              documents={caso.documents ?? []}
+              onRefresh={refreshCaso}
+              autoOpenUpload={openDocUpload}
+              onAutoOpenConsumed={() => setOpenDocUpload(false)}
+            />
+          )}
           {activeTab === 3 && <TabTimeline caso={caso} />}
           {activeTab === 4 && <TabNotas caso={caso} />}
           {activeTab === 5 && <TabLegalIntel caso={caso} />}
@@ -206,12 +218,17 @@ export default function ExpedientePage() {
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Acciones rápidas</h3>
             <div className="space-y-2">
               {[
-                { icon: Plus, label: 'Nueva tarea', color: 'text-navy-600' },
-                { icon: Upload, label: 'Subir documento', color: 'text-navy-600' },
-                { icon: MessageSquare, label: 'Agregar nota', color: 'text-navy-600' },
-                { icon: Zap, label: 'Consultar Legal Intel', color: 'text-brand-orange' },
-              ].map(a => (
-                <button key={a.label} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left">
+                { icon: Plus, label: 'Nueva tarea', color: 'text-navy-600', action: () => setActiveTab(1) },
+                { icon: Upload, label: 'Subir documento', color: 'text-navy-600', action: () => { setActiveTab(2); setOpenDocUpload(true); } },
+                { icon: MessageSquare, label: 'Agregar nota', color: 'text-navy-600', action: () => setActiveTab(4) },
+                { icon: Zap, label: 'Consultar Legal Intel', color: 'text-brand-orange', action: () => setActiveTab(5) },
+              ].map((a) => (
+                <button
+                  key={a.label}
+                  type="button"
+                  onClick={a.action}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                >
                   <a.icon size={14} className={a.color} />
                   {a.label}
                 </button>
@@ -332,51 +349,6 @@ function TabResumen({ caso }: { caso: ReturnType<typeof mockCases.find> & object
 
 function TabTareas({ caso }: { caso: any }) {
   return <TasksTab caseId={caso.id} caseTitle={caso.title} />;
-}
-
-function TabDocumentos({ caso }: { caso: any }) {
-  return (
-    <div className="space-y-3">
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Documentos del expediente</h3>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-600 text-white rounded-lg hover:bg-navy-700">
-            <Upload size={12} /> Subir documento
-          </button>
-        </div>
-        {caso.documents.length === 0 ? (
-          <div className="py-12 text-center text-gray-400 text-sm">No hay documentos cargados aún.</div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {caso.documents.map((d: any) => (
-              <div key={d.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group cursor-pointer">
-                <div className="w-8 h-8 rounded-lg bg-navy-50 border border-navy-100 flex items-center justify-center shrink-0">
-                  <FileText size={14} className="text-navy-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate group-hover:text-navy-600">{d.name}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-[10px] text-gray-400">{d.type}</span>
-                    <span className="text-gray-200">·</span>
-                    <span className="text-[10px] text-gray-400">{d.size}</span>
-                    <span className="text-gray-200">·</span>
-                    <span className="text-[10px] text-gray-400">{formatDate(d.uploadedAt)}</span>
-                    <span className="text-gray-200">·</span>
-                    <span className="text-[10px] text-gray-400">{d.uploadedBy}</span>
-                  </div>
-                </div>
-                {d.linkedLegalIntel && (
-                  <span className="flex items-center gap-1 text-[10px] text-brand-orange font-semibold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
-                    <Zap size={9} /> Legal Intel
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function timelineUserLabel(e: { user?: { name?: string } | null; userId?: string | null }) {

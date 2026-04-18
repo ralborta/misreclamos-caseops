@@ -71,6 +71,13 @@ export const api = {
       overdueOpen: any[];
     }>('/agenda'),
 
+  documents: {
+    create: (caseId: string, data: { name: string; type: string; size?: string; stage?: string }) =>
+      request<any>(`/cases/${caseId}/documents`, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (caseId: string, id: string) =>
+      request<{ ok: boolean }>(`/cases/${caseId}/documents/${id}`, { method: 'DELETE' }),
+  },
+
   tasks: {
     list: (caseId: string) => request<any[]>(`/cases/${caseId}/tasks`),
     create: (caseId: string, data: any) =>
