@@ -10,7 +10,6 @@ import {
   ChevronRight,
   X,
   Loader2,
-  Braces,
 } from 'lucide-react';
 
 function fmtSize(bytes: number) {
@@ -151,7 +150,7 @@ type ResultSection = { id: string; label: string; content: string };
 
 function extractResultSections(data: any): ResultSection[] {
   if (!data || typeof data !== 'object') {
-    return [{ id: 'raw', label: 'JSON', content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }];
+    return [{ id: 'analisis', label: 'Análisis', content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }];
   }
 
   const analysis = data.analysis && typeof data.analysis === 'object' ? data.analysis : null;
@@ -183,7 +182,13 @@ function extractResultSections(data: any): ResultSection[] {
       .join('\n\n');
     sections.push({ id: 'pasos', label: 'Próximos pasos', content });
   }
-  sections.push({ id: 'json', label: 'JSON', content: JSON.stringify(data, null, 2) });
+  if (sections.length === 0) {
+    sections.push({
+      id: 'analisis',
+      label: 'Análisis',
+      content: extractReadableResult(data).body || 'Sin contenido disponible.',
+    });
+  }
 
   return sections;
 }
@@ -670,6 +675,10 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setFullResultOpen(false)}
         >
+          {(() => {
+            const sections = extractResultSections(fullResultData);
+            const active = sections.find((s) => s.id === activeResultSection) ?? sections[0];
+            return (
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">{extractReadableResult(fullResultData).title}</h3>
@@ -681,44 +690,33 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
                 <X size={18} />
               </button>
             </div>
-            <div className="grid grid-cols-12 gap-0 min-h-0 flex-1">
-              <div className="col-span-8 p-6 overflow-auto border-r border-gray-100">
-                <div className="whitespace-pre-wrap text-[15px] text-gray-800 leading-7">
-                  {extractReadableResult(fullResultData).body}
-                </div>
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-2 overflow-auto">
+                {sections.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setActiveResultSection(s.id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                      activeResultSection === s.id
+                        ? 'bg-navy-100 text-navy-700 font-semibold'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
-              <div className="col-span-4 p-4 overflow-auto bg-gray-50">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Secciones</p>
-                <div className="space-y-1 mb-4">
-                  {extractResultSections(fullResultData).map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setActiveResultSection(s.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        activeResultSection === s.id
-                          ? 'bg-navy-100 text-navy-700 font-semibold'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      {s.id === 'json' ? <span className="inline-flex items-center gap-1"><Braces size={13} /> {s.label}</span> : s.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-2">
-                    {extractResultSections(fullResultData).find((s) => s.id === activeResultSection)?.label || 'Detalle'}
-                  </p>
-                  <pre className="text-[11px] text-gray-700 whitespace-pre-wrap break-words max-h-[52vh] overflow-auto">
-                    {extractResultSections(fullResultData).find((s) => s.id === activeResultSection)?.content || 'Sin contenido'}
-                  </pre>
-                </div>
-                <pre className="hidden text-[11px] text-gray-700 whitespace-pre-wrap break-words">
-                  {JSON.stringify(extractReadableResult(fullResultData).raw, null, 2)}
-                </pre>
+            </div>
+            <div className="p-6 overflow-auto min-h-0 flex-1">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">{active?.label || 'Detalle'}</h4>
+              <div className="whitespace-pre-wrap text-[15px] text-gray-800 leading-7">
+                {active?.content || 'Sin contenido'}
               </div>
             </div>
           </div>
+            );
+          })()}
         </div>
       )}
     </div>
