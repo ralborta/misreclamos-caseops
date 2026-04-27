@@ -79,9 +79,7 @@ function extractReadableResult(data: any): { title: string; body: string; raw: u
   const reportText =
     typeof report === 'string'
       ? report
-      : report && typeof report === 'object'
-        ? JSON.stringify(report, null, 2)
-        : '';
+      : '';
 
   const originalText =
     typeof original === 'string'
@@ -90,12 +88,56 @@ function extractReadableResult(data: any): { title: string; body: string; raw: u
         ? original.text
         : '';
 
+  const formatList = (items: any[] | undefined, mapItem: (x: any, i: number) => string) =>
+    Array.isArray(items) && items.length > 0 ? items.map(mapItem).join('\n') : '';
+
+  const formatReportObject = (r: Record<string, any>) => {
+    const parts: string[] = [];
+    if (r.titulo) parts.push(`# ${r.titulo}`);
+    if (r.tipo_documento || r.jurisdiccion || r.area_legal) {
+      parts.push(
+        [
+          r.tipo_documento ? `Tipo: ${r.tipo_documento}` : '',
+          r.jurisdiccion ? `Jurisdicción: ${r.jurisdiccion}` : '',
+          r.area_legal ? `Área legal: ${r.area_legal}` : '',
+        ].filter(Boolean).join(' | '),
+      );
+    }
+    if (r.resumen_ejecutivo) parts.push(`\n## Resumen ejecutivo\n${r.resumen_ejecutivo}`);
+    if (r.analisis_juridico) parts.push(`\n## Análisis jurídico\n${r.analisis_juridico}`);
+
+    const clausulas = formatList(r.clausulas_analizadas, (c, i) => {
+      const n = c.numero ? `${c.numero}` : `${i + 1}`;
+      const t = c.titulo ? ` — ${c.titulo}` : '';
+      const riesgo = c.riesgo ? `\nRiesgo: ${c.riesgo}` : '';
+      return `### Cláusula ${n}${t}\n${c.analisis || 'Sin análisis'}${riesgo}`;
+    });
+    if (clausulas) parts.push(`\n## Cláusulas analizadas\n${clausulas}`);
+
+    const riesgos = formatList(r.riesgos, (ri, i) => `- ${i + 1}. ${ri.descripcion || 'Riesgo'}${ri.nivel ? ` (nivel: ${ri.nivel})` : ''}${ri.recomendacion ? `\n  Recomendación: ${ri.recomendacion}` : ''}`);
+    if (riesgos) parts.push(`\n## Riesgos\n${riesgos}`);
+
+    const recomendaciones = formatList(r.recomendaciones, (rec, i) => {
+      const meta = [rec.prioridad ? `prioridad: ${rec.prioridad}` : '', rec.urgencia ? `urgencia: ${rec.urgencia}` : ''].filter(Boolean).join(', ');
+      return `- ${i + 1}. ${rec.descripcion || 'Recomendación'}${meta ? ` (${meta})` : ''}`;
+    });
+    if (recomendaciones) parts.push(`\n## Recomendaciones\n${recomendaciones}`);
+
+    const proximos = formatList(r.proximos_pasos, (p, i) => `- ${i + 1}. ${p.accion || 'Paso'}${p.fecha_limite ? ` (fecha límite: ${p.fecha_limite})` : ''}${p.responsable ? ` — Responsable: ${p.responsable}` : ''}`);
+    if (proximos) parts.push(`\n## Próximos pasos\n${proximos}`);
+
+    return parts.join('\n');
+  };
+
+  const reportPretty =
+    report && typeof report === 'object'
+      ? formatReportObject(report as Record<string, any>) || JSON.stringify(report, null, 2)
+      : reportText;
+
   const header = obj.filename ? `Documento: ${obj.filename}\n` : '';
-  const body = [
-    header,
-    reportText ? `=== ANÁLISIS ===\n${reportText}` : '',
-    originalText ? `\n=== TEXTO EXTRAÍDO ===\n${originalText}` : '',
-  ].filter(Boolean).join('\n');
+  const body = [header, reportPretty ? `=== ANÁLISIS ===\n${reportPretty}` : '', originalText ? `\n=== TEXTO EXTRAÍDO ===\n${originalText}` : '']
+    .filter(Boolean)
+    .join('\n');
 
   return {
     title: obj.filename ? `Resultado — ${obj.filename}` : 'Resultado de análisis',
