@@ -40,6 +40,18 @@ const caseUpdateSchema = z.object({
   coordinatorId: z.string().uuid().nullable().optional(),
 });
 
+const caseClientUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  dni: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  consent: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+
 const caseRoutes: FastifyPluginAsync = async (fastify) => {
   const auth = { preHandler: [fastify.authenticate] };
   const authCoord = { preHandler: [fastify.authenticate, requireCoordOrAbove()] };
@@ -149,6 +161,52 @@ const caseRoutes: FastifyPluginAsync = async (fastify) => {
 
     reply.code(201);
     return caso;
+  });
+
+  // PATCH /cases/:id/client
+  fastify.patch('/cases/:id/client', authLawyer, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = caseClientUpdateSchema.parse(request.body);
+
+    const existing = await prisma.case.findUnique({
+      where: { id },
+      select: { id: true, caseId: true, assignedLawyerId: true, clientId: true },
+    });
+    if (!existing) return reply.code(404).send({ error: 'Caso no encontrado' });
+
+    if (request.user.role === 'abogado_asociado' && existing.assignedLawyerId !== request.user.id) {
+      return reply.code(403).send({ error: 'Acceso denegado' });
+    }
+
+    const normalizeOptional = (value: string | undefined) => {
+      if (value === undefined) return undefined;
+      const trimmed = value.trim();
+      return trimmed.length === 0 ? null : trimmed;
+    };
+
+    const updatedClient = await prisma.client.update({
+      where: { id: existing.clientId },
+      data: {
+        name: body.name?.trim(),
+        dni: body.dni?.trim(),
+        phone: normalizeOptional(body.phone),
+        email: normalizeOptional(body.email),
+        address: normalizeOptional(body.address),
+        city: normalizeOptional(body.city),
+        province: normalizeOptional(body.province),
+        notes: normalizeOptional(body.notes),
+        consent: body.consent,
+      },
+    });
+
+    await recordEvent({
+      caseId: id,
+      userId: request.user.id,
+      action: 'Datos del cliente actualizados',
+      type: 'hito',
+    });
+
+    return updatedClient;
   });
 
   // PATCH /cases/:id

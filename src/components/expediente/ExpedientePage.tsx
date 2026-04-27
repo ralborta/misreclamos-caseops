@@ -13,7 +13,7 @@ import {
   ArrowLeft, AlertTriangle, Clock, User, Calendar, FileText,
   MessageSquare, CheckSquare, Activity, Zap, MoreHorizontal,
   Upload, Plus, ChevronRight, CheckCircle2, Circle, Shield,
-  Phone, Mail, MapPin, Tag, Edit2, Copy, Filter, Archive, RefreshCcw,
+  Phone, Mail, MapPin, Tag, Edit2, Copy, Filter, Archive, RefreshCcw, Save, X,
 } from 'lucide-react';
 
 const tabs = ['Resumen', 'Tareas', 'Documentos', 'Timeline', 'Notas', 'Legal Intel'];
@@ -29,6 +29,19 @@ export default function ExpedientePage() {
   const [openNoteModal, setOpenNoteModal] = useState(false);
   const [caseMenuOpen, setCaseMenuOpen] = useState(false);
   const [regeneratingSummary, setRegeneratingSummary] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientDraft, setClientDraft] = useState({
+    name: '',
+    dni: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    province: '',
+    consent: false,
+    notes: '',
+  });
   const caseMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshCaso = () => (id ? api.cases.get(id).then(setCaso) : Promise.resolve());
@@ -107,6 +120,21 @@ export default function ExpedientePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (!caso?.client) return;
+    setClientDraft({
+      name: caso.client.name || '',
+      dni: caso.client.dni || '',
+      phone: caso.client.phone || '',
+      email: caso.client.email || '',
+      address: caso.client.address || '',
+      city: caso.client.city || '',
+      province: caso.client.province || '',
+      consent: !!caso.client.consent,
+      notes: caso.client.notes || '',
+    });
+  }, [caso]);
+
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Cargando expediente...</div>
   );
@@ -121,6 +149,20 @@ export default function ExpedientePage() {
   const sc = statusConfig[caso.status];
   const pc = priorityConfig[caso.priority];
   const mc = materiaConfig[caso.materia];
+
+  const saveClientChanges = async () => {
+    if (!caso?.id || savingClient) return;
+    setSavingClient(true);
+    try {
+      await api.cases.updateClient(caso.id, clientDraft);
+      await refreshCaso();
+      setEditingClient(false);
+    } catch (e: any) {
+      alert(e?.message || 'No se pudieron guardar los datos del cliente');
+    } finally {
+      setSavingClient(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl space-y-5">
@@ -331,27 +373,104 @@ export default function ExpedientePage() {
         <div className="space-y-4">
           {/* Client card */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Cliente</h3>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-navy-100 flex items-center justify-center text-navy-600 text-sm font-bold">
-                {caso.client.name.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{caso.client.name}</p>
-                <p className="text-[11px] text-gray-400">DNI {caso.client.dni}</p>
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</h3>
+              {!editingClient ? (
+                <button
+                  type="button"
+                  onClick={() => setEditingClient(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-navy-600 hover:text-navy-700 font-medium"
+                >
+                  <Edit2 size={12} />
+                  Editar
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClient(false);
+                      if (caso?.client) {
+                        setClientDraft({
+                          name: caso.client.name || '',
+                          dni: caso.client.dni || '',
+                          phone: caso.client.phone || '',
+                          email: caso.client.email || '',
+                          address: caso.client.address || '',
+                          city: caso.client.city || '',
+                          province: caso.client.province || '',
+                          consent: !!caso.client.consent,
+                          notes: caso.client.notes || '',
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700 font-medium"
+                  >
+                    <X size={12} />
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveClientChanges}
+                    disabled={savingClient}
+                    className="inline-flex items-center gap-1 text-[11px] text-green-600 hover:text-green-700 font-medium disabled:opacity-60"
+                  >
+                    <Save size={12} />
+                    {savingClient ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <Phone size={11} className="text-gray-400 shrink-0" /> {caso.client.phone}
+
+            {!editingClient ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-full bg-navy-100 flex items-center justify-center text-navy-600 text-sm font-bold">
+                    {caso.client.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{caso.client.name}</p>
+                    <p className="text-[11px] text-gray-400">DNI {caso.client.dni}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Phone size={11} className="text-gray-400 shrink-0" /> {caso.client.phone || 'No informado'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Mail size={11} className="text-gray-400 shrink-0" /> {caso.client.email || 'No informado'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <MapPin size={11} className="text-gray-400 shrink-0" /> {[caso.client.city, caso.client.province].filter(Boolean).join(', ') || 'No informado'}
+                  </div>
+                  {caso.client.address && (
+                    <p className="text-[11px] text-gray-500">Dirección: {caso.client.address}</p>
+                  )}
+                  {caso.client.notes && (
+                    <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5">
+                      {caso.client.notes}
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <input value={clientDraft.name} onChange={(e) => setClientDraft((p) => ({ ...p, name: e.target.value }))} placeholder="Nombre completo" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                <input value={clientDraft.dni} onChange={(e) => setClientDraft((p) => ({ ...p, dni: e.target.value }))} placeholder="DNI" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                <input value={clientDraft.phone} onChange={(e) => setClientDraft((p) => ({ ...p, phone: e.target.value }))} placeholder="Teléfono" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                <input value={clientDraft.email} onChange={(e) => setClientDraft((p) => ({ ...p, email: e.target.value }))} placeholder="Email" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                <input value={clientDraft.address} onChange={(e) => setClientDraft((p) => ({ ...p, address: e.target.value }))} placeholder="Dirección" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={clientDraft.city} onChange={(e) => setClientDraft((p) => ({ ...p, city: e.target.value }))} placeholder="Ciudad" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                  <input value={clientDraft.province} onChange={(e) => setClientDraft((p) => ({ ...p, province: e.target.value }))} placeholder="Provincia" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                </div>
+                <textarea value={clientDraft.notes} onChange={(e) => setClientDraft((p) => ({ ...p, notes: e.target.value }))} placeholder="Notas del cliente (contacto, preferencias, observaciones)" className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs min-h-[74px]" />
+                <label className="flex items-center gap-2 text-xs text-gray-600 pt-1">
+                  <input type="checkbox" checked={clientDraft.consent} onChange={(e) => setClientDraft((p) => ({ ...p, consent: e.target.checked }))} />
+                  Consentimiento registrado
+                </label>
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <Mail size={11} className="text-gray-400 shrink-0" /> {caso.client.email}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <MapPin size={11} className="text-gray-400 shrink-0" /> {caso.client.city}, {caso.client.province}
-              </div>
-            </div>
+            )}
             {caso.client.consent && (
               <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5 text-[10px] text-green-600">
                 <CheckCircle2 size={11} /> Consentimiento registrado

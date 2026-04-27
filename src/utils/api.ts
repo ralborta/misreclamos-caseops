@@ -77,6 +77,18 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({}),
       }),
+    updateClient: (id: string, data: {
+      name?: string;
+      dni?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      city?: string;
+      province?: string;
+      consent?: boolean;
+      notes?: string;
+    }) =>
+      request<any>(`/cases/${id}/client`, { method: 'PATCH', body: JSON.stringify(data) }),
     /** Soft-delete: estado archivado (requiere rol coordinador o admin) */
     archive: (id: string) => request<{ ok: boolean; caseId: string }>(`/cases/${id}`, { method: 'DELETE' }),
   },
