@@ -10,6 +10,13 @@ import {
   ChevronRight,
   X,
   Loader2,
+  FileCheck2,
+  ListChecks,
+  TrendingUp,
+  BarChart3,
+  AlertTriangle,
+  BookCopy,
+  FileScan,
 } from 'lucide-react';
 
 function fmtSize(bytes: number) {
@@ -193,6 +200,46 @@ function extractResultSections(data: any): ResultSection[] {
   return sections;
 }
 
+function buildAnalysisViews(data: any) {
+  const empty = 'Sin contenido disponible.';
+  const report = data?.analysis?.report && typeof data.analysis.report === 'object' ? data.analysis.report : null;
+  const original = data?.analysis?.original;
+  const originalText =
+    typeof original === 'string'
+      ? original
+      : original && typeof original === 'object' && typeof original.text === 'string'
+        ? original.text
+        : '';
+
+  const listText = (arr: any[] | undefined, map: (x: any, i: number) => string) =>
+    Array.isArray(arr) && arr.length ? arr.map(map).join('\n\n') : '';
+
+  const resumen = report?.resumen_ejecutivo || extractReadableResult(data).body || empty;
+  const puntosTratados = [
+    report?.analisis_juridico ? `Análisis jurídico\n${report.analisis_juridico}` : '',
+    listText(report?.clausulas_analizadas, (c, i) =>
+      `Cláusula ${c.numero || i + 1}${c.titulo ? ` — ${c.titulo}` : ''}\n${c.analisis || 'Sin análisis'}`),
+  ].filter(Boolean).join('\n\n');
+  const proximosPasos = listText(report?.proximos_pasos, (p, i) =>
+    `${i + 1}. ${p.accion || 'Paso'}${p.fecha_limite ? `\nFecha límite: ${p.fecha_limite}` : ''}${p.responsable ? `\nResponsable: ${p.responsable}` : ''}`);
+  const fuentes = listText(report?.citas, (c, i) =>
+    `${i + 1}. ${c.referencia || c.descripcion || 'Fuente'}${c.tipo ? ` (${c.tipo})` : ''}${c.url ? `\n${c.url}` : ''}`);
+  const riesgos = listText(report?.riesgos, (r, i) =>
+    `${i + 1}. ${r.descripcion || 'Riesgo'}${r.nivel ? ` (nivel: ${r.nivel})` : ''}${r.recomendacion ? `\nRecomendación: ${r.recomendacion}` : ''}`);
+  const citas = fuentes;
+  const textoCompleto = originalText || empty;
+
+  return {
+    resumen: resumen || empty,
+    puntos: puntosTratados || empty,
+    pasos: proximosPasos || empty,
+    fuentes: fuentes || empty,
+    riesgos: riesgos || empty,
+    citas: citas || empty,
+    texto: textoCompleto || empty,
+  };
+}
+
 type Panel = null | 'analyze' | 'generate' | 'query' | 'history';
 
 type Props = {
@@ -213,7 +260,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
   const [pollingLabel, setPollingLabel] = useState('');
   const [fullResultOpen, setFullResultOpen] = useState(false);
   const [fullResultData, setFullResultData] = useState<unknown>(null);
-  const [activeResultSection, setActiveResultSection] = useState('resumen');
+  const [resultMainTab, setResultMainTab] = useState<'resumen' | 'puntos' | 'pasos' | 'fuentes'>('resumen');
+  const [resultChip, setResultChip] = useState<'' | 'riesgos' | 'citas' | 'texto'>('');
 
   // Analizar
   const [file, setFile] = useState<File | null>(null);
@@ -335,7 +383,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
         setPollingDocId(null);
         setPollingLabel('');
         setFullResultData(out);
-        setActiveResultSection('resumen');
+        setResultMainTab('resumen');
+        setResultChip('');
         setFullResultOpen(true);
       }
     } catch (err: any) {
@@ -363,7 +412,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           setPollingDocId(null);
           setPollingLabel('');
           setFullResultData(out);
-          setActiveResultSection('resumen');
+          setResultMainTab('resumen');
+          setResultChip('');
           setFullResultOpen(true);
           await onRefresh();
         } else if (status.status === 'error') {
@@ -676,12 +726,33 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           onClick={(e) => e.target === e.currentTarget && setFullResultOpen(false)}
         >
           {(() => {
-            const sections = extractResultSections(fullResultData);
-            const active = sections.find((s) => s.id === activeResultSection) ?? sections[0];
+            const views = buildAnalysisViews(fullResultData);
+            const mainContent = views[resultMainTab];
+            const content = resultChip ? views[resultChip] : mainContent;
+            const title = extractReadableResult(fullResultData).title;
+            const mainTabs = [
+              { id: 'resumen', label: 'Resumen', icon: FileText },
+              { id: 'puntos', label: 'Puntos tratados', icon: ListChecks },
+              { id: 'pasos', label: 'Próximos pasos', icon: TrendingUp },
+              { id: 'fuentes', label: 'Fuentes', icon: BarChart3 },
+            ] as const;
+            const chips = [
+              { id: 'riesgos', label: 'Riesgos', icon: AlertTriangle },
+              { id: 'citas', label: 'Citas', icon: BookCopy },
+              { id: 'texto', label: 'Texto completo', icon: FileScan },
+            ] as const;
             return (
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">{extractReadableResult(fullResultData).title}</h3>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                  <FileCheck2 size={21} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-2xl leading-tight">Análisis de Documento</h3>
+                  <p className="text-sm text-gray-500">{title}</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setFullResultOpen(false)}
@@ -690,28 +761,62 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
                 <X size={18} />
               </button>
             </div>
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-              <div className="flex items-center gap-2 overflow-auto">
-                {sections.map((s) => (
+            <div className="px-6 pt-4 pb-2 bg-[#f6f7fb] border-b border-gray-100">
+              <div className="flex items-center gap-1 overflow-auto">
+                {mainTabs.map((t) => {
+                  const Icon = t.icon;
+                  const active = resultMainTab === t.id;
+                  return (
                   <button
-                    key={s.id}
+                    key={t.id}
                     type="button"
-                    onClick={() => setActiveResultSection(s.id)}
-                    className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors ${
-                      activeResultSection === s.id
-                        ? 'bg-navy-100 text-navy-700 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-100'
+                    onClick={() => {
+                      setResultMainTab(t.id as any);
+                      setResultChip('');
+                    }}
+                    className={`px-4 py-2 rounded-t-lg text-[15px] whitespace-nowrap transition-colors border-b-2 ${
+                      active
+                        ? 'text-blue-600 border-blue-600 bg-white'
+                        : 'text-slate-500 border-transparent hover:text-slate-700'
                     }`}
                   >
-                    {s.label}
+                    <span className="inline-flex items-center gap-2">
+                      <Icon size={16} />
+                      {t.label}
+                    </span>
                   </button>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-3 mt-4 mb-2">
+                {chips.map((c) => {
+                  const Icon = c.icon;
+                  const active = resultChip === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setResultChip(active ? '' : (c.id as any))}
+                      className={`px-4 py-2 rounded-full text-[15px] transition-colors ${
+                        active
+                          ? 'bg-white border border-blue-300 text-blue-700'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Icon size={16} />
+                        {c.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <div className="p-6 overflow-auto min-h-0 flex-1">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">{active?.label || 'Detalle'}</h4>
-              <div className="whitespace-pre-wrap text-[15px] text-gray-800 leading-7">
-                {active?.content || 'Sin contenido'}
+            <div className="p-6 overflow-auto min-h-0 flex-1 bg-white">
+              <div className="bg-slate-100 rounded-xl p-5 border border-slate-200">
+                <div className="whitespace-pre-wrap text-[16px] text-slate-700 leading-8">
+                  {content}
+                </div>
               </div>
             </div>
           </div>
