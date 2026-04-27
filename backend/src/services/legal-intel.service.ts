@@ -19,7 +19,10 @@ export const legalIntelService = {
   async uploadDocument(formData: FormData) {
     if (!LI_BASE) throw new Error('LEGAL_INTEL_URL not configured');
     const res = await fetch(`${LI_BASE}/legal/upload`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error(`LI upload failed: ${res.status}`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`LI upload failed ${res.status}${text ? `: ${text}` : ''}`);
+    }
     return res.json();
   },
 

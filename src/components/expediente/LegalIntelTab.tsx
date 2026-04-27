@@ -26,20 +26,27 @@ function extFromName(name: string) {
 
 /** Respuesta típica de /legal/upload en legal-tec — ajustar si tu API usa otro campo */
 function extractLegalIntelDocId(data: unknown): string | null {
-  if (data == null || typeof data !== 'object') return null;
-  const o = data as Record<string, unknown>;
-  const keys = ['id', 'documentId', 'document_id', 'legalIntelDocumentId'];
-  for (const k of keys) {
-    const v = o[k];
-    if (typeof v === 'string' && v.length > 0) return v;
-  }
-  if (o.data && typeof o.data === 'object') {
-    const d = o.data as Record<string, unknown>;
-    for (const k of keys) {
-      const v = d[k];
-      if (typeof v === 'string' && v.length > 0) return v;
+  const keys = ['legalIntelDocumentId', 'documentId', 'document_id', 'id'];
+  const visited = new Set<unknown>();
+  const stack: unknown[] = [data];
+
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (cur == null || typeof cur !== 'object') continue;
+    if (visited.has(cur)) continue;
+    visited.add(cur);
+
+    const obj = cur as Record<string, unknown>;
+    for (const key of keys) {
+      const value = obj[key];
+      if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+
+    for (const value of Object.values(obj)) {
+      if (value && typeof value === 'object') stack.push(value);
     }
   }
+
   return null;
 }
 
