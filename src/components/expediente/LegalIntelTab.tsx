@@ -10,6 +10,7 @@ import {
   ChevronRight,
   X,
   Loader2,
+  Braces,
 } from 'lucide-react';
 
 function fmtSize(bytes: number) {
@@ -146,6 +147,47 @@ function extractReadableResult(data: any): { title: string; body: string; raw: u
   };
 }
 
+type ResultSection = { id: string; label: string; content: string };
+
+function extractResultSections(data: any): ResultSection[] {
+  if (!data || typeof data !== 'object') {
+    return [{ id: 'raw', label: 'JSON', content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }];
+  }
+
+  const analysis = data.analysis && typeof data.analysis === 'object' ? data.analysis : null;
+  const report = analysis?.report && typeof analysis.report === 'object' ? analysis.report : null;
+  const sections: ResultSection[] = [];
+
+  if (report?.resumen_ejecutivo) sections.push({ id: 'resumen', label: 'Resumen', content: report.resumen_ejecutivo });
+  if (Array.isArray(report?.clausulas_analizadas) && report.clausulas_analizadas.length) {
+    const content = report.clausulas_analizadas
+      .map((c: any, i: number) => `Cláusula ${c.numero || i + 1}${c.titulo ? ` — ${c.titulo}` : ''}\n${c.analisis || 'Sin análisis'}${c.riesgo ? `\nRiesgo: ${c.riesgo}` : ''}`)
+      .join('\n\n');
+    sections.push({ id: 'clausulas', label: 'Cláusulas', content });
+  }
+  if (Array.isArray(report?.riesgos) && report.riesgos.length) {
+    const content = report.riesgos
+      .map((r: any, i: number) => `${i + 1}. ${r.descripcion || 'Riesgo'}${r.nivel ? ` (nivel: ${r.nivel})` : ''}${r.recomendacion ? `\nRecomendación: ${r.recomendacion}` : ''}`)
+      .join('\n\n');
+    sections.push({ id: 'riesgos', label: 'Riesgos', content });
+  }
+  if (Array.isArray(report?.recomendaciones) && report.recomendaciones.length) {
+    const content = report.recomendaciones
+      .map((r: any, i: number) => `${i + 1}. ${r.descripcion || 'Recomendación'}${r.prioridad ? `\nPrioridad: ${r.prioridad}` : ''}${r.urgencia ? ` | Urgencia: ${r.urgencia}` : ''}`)
+      .join('\n\n');
+    sections.push({ id: 'recomendaciones', label: 'Recomendaciones', content });
+  }
+  if (Array.isArray(report?.proximos_pasos) && report.proximos_pasos.length) {
+    const content = report.proximos_pasos
+      .map((p: any, i: number) => `${i + 1}. ${p.accion || 'Paso'}${p.fecha_limite ? `\nFecha límite: ${p.fecha_limite}` : ''}${p.responsable ? `\nResponsable: ${p.responsable}` : ''}`)
+      .join('\n\n');
+    sections.push({ id: 'pasos', label: 'Próximos pasos', content });
+  }
+  sections.push({ id: 'json', label: 'JSON', content: JSON.stringify(data, null, 2) });
+
+  return sections;
+}
+
 type Panel = null | 'analyze' | 'generate' | 'query' | 'history';
 
 type Props = {
@@ -166,6 +208,7 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
   const [pollingLabel, setPollingLabel] = useState('');
   const [fullResultOpen, setFullResultOpen] = useState(false);
   const [fullResultData, setFullResultData] = useState<unknown>(null);
+  const [activeResultSection, setActiveResultSection] = useState('resumen');
 
   // Analizar
   const [file, setFile] = useState<File | null>(null);
@@ -287,6 +330,7 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
         setPollingDocId(null);
         setPollingLabel('');
         setFullResultData(out);
+        setActiveResultSection('resumen');
         setFullResultOpen(true);
       }
     } catch (err: any) {
@@ -314,6 +358,7 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           setPollingDocId(null);
           setPollingLabel('');
           setFullResultData(out);
+          setActiveResultSection('resumen');
           setFullResultOpen(true);
           await onRefresh();
         } else if (status.status === 'error') {
@@ -625,7 +670,7 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setFullResultOpen(false)}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">{extractReadableResult(fullResultData).title}</h3>
               <button
@@ -636,15 +681,39 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
                 <X size={18} />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-0 min-h-0 flex-1">
-              <div className="col-span-2 p-4 overflow-auto border-r border-gray-100">
-                <pre className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
+            <div className="grid grid-cols-12 gap-0 min-h-0 flex-1">
+              <div className="col-span-8 p-6 overflow-auto border-r border-gray-100">
+                <div className="whitespace-pre-wrap text-[15px] text-gray-800 leading-7">
                   {extractReadableResult(fullResultData).body}
-                </pre>
+                </div>
               </div>
-              <div className="col-span-1 p-4 overflow-auto bg-gray-50">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">JSON crudo</p>
-                <pre className="text-[11px] text-gray-700 whitespace-pre-wrap break-words">
+              <div className="col-span-4 p-4 overflow-auto bg-gray-50">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Secciones</p>
+                <div className="space-y-1 mb-4">
+                  {extractResultSections(fullResultData).map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setActiveResultSection(s.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        activeResultSection === s.id
+                          ? 'bg-navy-100 text-navy-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {s.id === 'json' ? <span className="inline-flex items-center gap-1"><Braces size={13} /> {s.label}</span> : s.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-2">
+                    {extractResultSections(fullResultData).find((s) => s.id === activeResultSection)?.label || 'Detalle'}
+                  </p>
+                  <pre className="text-[11px] text-gray-700 whitespace-pre-wrap break-words max-h-[52vh] overflow-auto">
+                    {extractResultSections(fullResultData).find((s) => s.id === activeResultSection)?.content || 'Sin contenido'}
+                  </pre>
+                </div>
+                <pre className="hidden text-[11px] text-gray-700 whitespace-pre-wrap break-words">
                   {JSON.stringify(extractReadableResult(fullResultData).raw, null, 2)}
                 </pre>
               </div>
