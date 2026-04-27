@@ -13,7 +13,7 @@ import {
   ArrowLeft, AlertTriangle, Clock, User, Calendar, FileText,
   MessageSquare, CheckSquare, Activity, Zap, MoreHorizontal,
   Upload, Plus, ChevronRight, CheckCircle2, Circle, Shield,
-  Phone, Mail, MapPin, Tag, Edit2, Copy, Filter, Archive,
+  Phone, Mail, MapPin, Tag, Edit2, Copy, Filter, Archive, RefreshCcw,
 } from 'lucide-react';
 
 const tabs = ['Resumen', 'Tareas', 'Documentos', 'Timeline', 'Notas', 'Legal Intel'];
@@ -28,6 +28,7 @@ export default function ExpedientePage() {
   const [openDocUpload, setOpenDocUpload] = useState(false);
   const [openNoteModal, setOpenNoteModal] = useState(false);
   const [caseMenuOpen, setCaseMenuOpen] = useState(false);
+  const [regeneratingSummary, setRegeneratingSummary] = useState(false);
   const caseMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshCaso = () => (id ? api.cases.get(id).then(setCaso) : Promise.resolve());
@@ -83,6 +84,19 @@ export default function ExpedientePage() {
       alert(e?.message || 'No se pudo archivar (¿permisos?)');
     }
     setCaseMenuOpen(false);
+  };
+
+  const regenerateSummary = async () => {
+    if (!caso?.id || regeneratingSummary) return;
+    setRegeneratingSummary(true);
+    try {
+      await api.cases.regenerateSummary(caso.id);
+      await refreshCaso();
+    } catch (e: any) {
+      alert(e?.message || 'No se pudo regenerar el resumen');
+    } finally {
+      setRegeneratingSummary(false);
+    }
   };
 
   useEffect(() => {
@@ -283,7 +297,13 @@ export default function ExpedientePage() {
       <div className="grid grid-cols-3 gap-5">
         {/* Main content */}
         <div className="col-span-2">
-          {activeTab === 0 && <TabResumen caso={caso} />}
+          {activeTab === 0 && (
+            <TabResumen
+              caso={caso}
+              onRegenerateSummary={regenerateSummary}
+              regeneratingSummary={regeneratingSummary}
+            />
+          )}
           {activeTab === 1 && <TabTareas caso={caso} />}
           {activeTab === 2 && (
             <DocumentsTab
@@ -398,7 +418,15 @@ export default function ExpedientePage() {
   );
 }
 
-function TabResumen({ caso }: { caso: ReturnType<typeof mockCases.find> & object }) {
+function TabResumen({
+  caso,
+  onRegenerateSummary,
+  regeneratingSummary,
+}: {
+  caso: ReturnType<typeof mockCases.find> & object;
+  onRegenerateSummary: () => void;
+  regeneratingSummary: boolean;
+}) {
   if (!caso) return null;
   const stages = {
     laboral: ['Análisis inicial', 'Intercambio telegráfico', 'Conciliación / SECLO', 'Demanda', 'Prueba', 'Alegato', 'Liquidación', 'Cierre'],
@@ -419,6 +447,17 @@ function TabResumen({ caso }: { caso: ReturnType<typeof mockCases.find> & object
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resumen ejecutivo</h3>
         <p className="text-sm text-gray-700 leading-relaxed">{caso.summary}</p>
+        <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+          <button
+            type="button"
+            onClick={onRegenerateSummary}
+            disabled={regeneratingSummary}
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-navy-700 bg-navy-50 border border-navy-200 rounded-lg hover:bg-navy-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <RefreshCcw size={13} className={regeneratingSummary ? 'animate-spin' : ''} />
+            {regeneratingSummary ? 'Regenerando resumen...' : 'Regenerar resumen'}
+          </button>
+        </div>
       </div>
 
       {/* Workflow */}

@@ -72,6 +72,11 @@ export const api = {
     get: (id: string) => request<any>(`/cases/${id}`),
     create: (data: any) => request<any>('/cases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/cases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    regenerateSummary: (id: string) =>
+      request<{ ok: boolean; summary: string | null }>(`/cases/${id}/regenerate-summary`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
     /** Soft-delete: estado archivado (requiere rol coordinador o admin) */
     archive: (id: string) => request<{ ok: boolean; caseId: string }>(`/cases/${id}`, { method: 'DELETE' }),
   },
