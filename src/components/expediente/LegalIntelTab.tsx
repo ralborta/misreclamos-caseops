@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import {
   FileText,
@@ -78,6 +78,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [loading, setLoading] = useState(false);
   const [lastResult, setLastResult] = useState<unknown>(null);
+  const [pollingDocId, setPollingDocId] = useState<string | null>(null);
+  const [pollingLabel, setPollingLabel] = useState('');
 
   // Analizar
   const [file, setFile] = useState<File | null>(null);
@@ -95,6 +97,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
   const close = () => {
     setPanel(null);
     setLastResult(null);
+    setPollingDocId(null);
+    setPollingLabel('');
   };
 
   const runAnalyze = async (e: React.FormEvent) => {
@@ -188,12 +192,54 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
     try {
       const out = await api.legalIntel.result(liDocumentId);
       setLastResult(out);
+      if (out && typeof out === 'object' && (out as any).status === 'processing') {
+        setPollingDocId(liDocumentId);
+        setPollingLabel('Análisis en curso. Actualizando automáticamente...');
+      } else {
+        setPollingDocId(null);
+        setPollingLabel('');
+      }
     } catch (err: any) {
       alert(err?.message || 'No se pudo obtener el resultado');
+      setPollingDocId(null);
+      setPollingLabel('');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!pollingDocId) return;
+
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      try {
+        const status = await api.legalIntel.status(pollingDocId) as any;
+        if (!status || typeof status !== 'object') return;
+
+        if (status.status === 'completed') {
+          const out = await api.legalIntel.result(pollingDocId);
+          if (cancelled) return;
+          setLastResult(out);
+          setPollingDocId(null);
+          setPollingLabel('');
+          await onRefresh();
+        } else if (status.status === 'error') {
+          if (cancelled) return;
+          setLastResult(status);
+          setPollingDocId(null);
+          setPollingLabel('');
+        }
+      } catch {
+        // silenciar errores transitorios de polling
+      }
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [pollingDocId, onRefresh]);
 
   const cards: { key: Panel; icon: typeof FileText; label: string; desc: string }[] = [
     {
@@ -468,6 +514,11 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {pollingDocId && (
+                    <p className="text-xs text-navy-600 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
+                      {pollingLabel}
+                    </p>
                   )}
                   {lastResult != null && <ResultBlock data={lastResult} />}
                 </div>
