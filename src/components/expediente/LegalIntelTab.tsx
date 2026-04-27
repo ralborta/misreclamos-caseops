@@ -62,6 +62,48 @@ function ResultBlock({ data }: { data: unknown }) {
   );
 }
 
+function extractReadableResult(data: any): { title: string; body: string; raw: unknown } {
+  if (!data || typeof data !== 'object') {
+    return {
+      title: 'Resultado de análisis',
+      body: typeof data === 'string' ? data : 'Sin contenido legible.',
+      raw: data,
+    };
+  }
+
+  const obj = data as Record<string, any>;
+  const analysis = obj.analysis && typeof obj.analysis === 'object' ? obj.analysis : null;
+  const report = analysis?.report;
+  const original = analysis?.original;
+
+  const reportText =
+    typeof report === 'string'
+      ? report
+      : report && typeof report === 'object'
+        ? JSON.stringify(report, null, 2)
+        : '';
+
+  const originalText =
+    typeof original === 'string'
+      ? original
+      : original && typeof original === 'object' && typeof original.text === 'string'
+        ? original.text
+        : '';
+
+  const header = obj.filename ? `Documento: ${obj.filename}\n` : '';
+  const body = [
+    header,
+    reportText ? `=== ANÁLISIS ===\n${reportText}` : '',
+    originalText ? `\n=== TEXTO EXTRAÍDO ===\n${originalText}` : '',
+  ].filter(Boolean).join('\n');
+
+  return {
+    title: obj.filename ? `Resultado — ${obj.filename}` : 'Resultado de análisis',
+    body: body || 'No hay contenido de análisis disponible.',
+    raw: data,
+  };
+}
+
 type Panel = null | 'analyze' | 'generate' | 'query' | 'history';
 
 type Props = {
@@ -80,6 +122,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
   const [lastResult, setLastResult] = useState<unknown>(null);
   const [pollingDocId, setPollingDocId] = useState<string | null>(null);
   const [pollingLabel, setPollingLabel] = useState('');
+  const [fullResultOpen, setFullResultOpen] = useState(false);
+  const [fullResultData, setFullResultData] = useState<unknown>(null);
 
   // Analizar
   const [file, setFile] = useState<File | null>(null);
@@ -99,6 +143,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
     setLastResult(null);
     setPollingDocId(null);
     setPollingLabel('');
+    setFullResultOpen(false);
+    setFullResultData(null);
   };
 
   const runAnalyze = async (e: React.FormEvent) => {
@@ -198,6 +244,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
       } else {
         setPollingDocId(null);
         setPollingLabel('');
+        setFullResultData(out);
+        setFullResultOpen(true);
       }
     } catch (err: any) {
       alert(err?.message || 'No se pudo obtener el resultado');
@@ -223,6 +271,8 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
           setLastResult(out);
           setPollingDocId(null);
           setPollingLabel('');
+          setFullResultData(out);
+          setFullResultOpen(true);
           await onRefresh();
         } else if (status.status === 'error') {
           if (cancelled) return;
@@ -523,6 +573,39 @@ export default function LegalIntelTab({ caso, caseId, onRefresh }: Props) {
                   {lastResult != null && <ResultBlock data={lastResult} />}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fullResultOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
+          onClick={(e) => e.target === e.currentTarget && setFullResultOpen(false)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-900">{extractReadableResult(fullResultData).title}</h3>
+              <button
+                type="button"
+                onClick={() => setFullResultOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-0 min-h-0 flex-1">
+              <div className="col-span-2 p-4 overflow-auto border-r border-gray-100">
+                <pre className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
+                  {extractReadableResult(fullResultData).body}
+                </pre>
+              </div>
+              <div className="col-span-1 p-4 overflow-auto bg-gray-50">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">JSON crudo</p>
+                <pre className="text-[11px] text-gray-700 whitespace-pre-wrap break-words">
+                  {JSON.stringify(extractReadableResult(fullResultData).raw, null, 2)}
+                </pre>
+              </div>
             </div>
           </div>
         </div>
