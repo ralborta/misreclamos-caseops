@@ -4,6 +4,7 @@ import { prisma } from '../utils/prisma';
 import { generateCaseId } from '../utils/case-id';
 import { recordEvent } from '../services/timeline.service';
 import { requireCoordOrAbove, requireLawyerOrAbove } from '../middleware/roles';
+import { regenerateCaseSummary } from '../services/case-summary.service';
 
 const caseCreateSchema = z.object({
   title: z.string().min(3),
@@ -182,6 +183,21 @@ const caseRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return updated;
+  });
+
+  // POST /cases/:id/regenerate-summary
+  fastify.post('/cases/:id/regenerate-summary', authLawyer, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await prisma.case.findUnique({ where: { id }, select: { id: true, assignedLawyerId: true } });
+    if (!existing) return reply.code(404).send({ error: 'Caso no encontrado' });
+
+    // Abogado asociado solo puede regenerar resumen de sus casos
+    if (request.user.role === 'abogado_asociado' && existing.assignedLawyerId !== request.user.id) {
+      return reply.code(403).send({ error: 'Acceso denegado' });
+    }
+
+    const result = await regenerateCaseSummary({ caseId: id, userId: request.user.id, reason: 'manual' });
+    return { ok: true, summary: result?.summary ?? null };
   });
 
   // DELETE /cases/:id (admin only, soft = archive)

@@ -4,6 +4,7 @@ import { prisma } from '../utils/prisma';
 import { recordEvent } from '../services/timeline.service';
 import { legalIntelService } from '../services/legal-intel.service';
 import { requireLawyerOrAbove } from '../middleware/roles';
+import { regenerateCaseSummary } from '../services/case-summary.service';
 
 const docSchema = z.object({
   name: z.string().min(1),
@@ -35,6 +36,7 @@ const documentRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     await recordEvent({ caseId, userId: request.user.id, action: `Documento cargado: "${doc.name}"`, type: 'documento' });
+    await regenerateCaseSummary({ caseId, userId: request.user.id, reason: 'document_created' });
 
     reply.code(201);
     return doc;
@@ -63,6 +65,7 @@ const documentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/cases/:caseId/documents/:id', auth, async (request) => {
     const { caseId, id } = request.params as { caseId: string; id: string };
     await prisma.document.delete({ where: { id, caseId } });
+    await regenerateCaseSummary({ caseId, userId: request.user.id, reason: 'document_deleted' });
     return { ok: true };
   });
 };

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { recordEvent } from '../services/timeline.service';
 import { requireLawyerOrAbove } from '../middleware/roles';
+import { regenerateCaseSummary } from '../services/case-summary.service';
 
 const noteSchema = z.object({
   content: z.string().min(1),
@@ -32,6 +33,7 @@ const noteRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     await recordEvent({ caseId, userId: request.user.id, action: `Nota ${body.type} agregada`, type: 'nota' });
+    await regenerateCaseSummary({ caseId, userId: request.user.id, reason: 'note_created' });
 
     reply.code(201);
     return note;
@@ -40,12 +42,15 @@ const noteRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/cases/:caseId/notes/:id', auth, async (request) => {
     const { caseId, id } = request.params as { caseId: string; id: string };
     const body = z.object({ content: z.string().min(1) }).parse(request.body);
-    return prisma.note.update({ where: { id, caseId }, data: body });
+    const updated = await prisma.note.update({ where: { id, caseId }, data: body });
+    await regenerateCaseSummary({ caseId, userId: request.user.id, reason: 'note_updated' });
+    return updated;
   });
 
   fastify.delete('/cases/:caseId/notes/:id', auth, async (request) => {
     const { caseId, id } = request.params as { caseId: string; id: string };
     await prisma.note.delete({ where: { id, caseId } });
+    await regenerateCaseSummary({ caseId, userId: request.user.id, reason: 'note_deleted' });
     return { ok: true };
   });
 };
