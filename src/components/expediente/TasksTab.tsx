@@ -4,7 +4,7 @@ import { api } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import {
   Plus, CheckCircle2, Circle, Clock, AlertTriangle, Calendar,
-  Trash2, X, ExternalLink, Sparkles,
+  Trash2, X, ExternalLink, Sparkles, Pencil, ArrowLeft,
 } from 'lucide-react';
 
 // Tipos de hito jurídico predefinidos por categoría
@@ -102,6 +102,8 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -183,6 +185,48 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
       await api.tasks.remove(caseId, taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch {}
+  };
+
+  const openEdit = (task: any) => {
+    const due = new Date(task.dueDate);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setEditingTask({
+      id: task.id,
+      title: task.title || '',
+      description: task.description || '',
+      dueDate: `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`,
+      dueTime: `${pad(due.getHours())}:${pad(due.getMinutes())}`,
+      priority: task.priority || 'media',
+      status: task.status || 'pendiente',
+    });
+  };
+
+  const closeEdit = () => setEditingTask(null);
+
+  const saveEdit = async (e: any) => {
+    e.preventDefault();
+    if (!editingTask?.id) return;
+    setEditSaving(true);
+    try {
+      const dueDate = new Date(`${editingTask.dueDate}T${editingTask.dueTime}:00`).toISOString();
+      const updated = await api.tasks.update(caseId, editingTask.id, {
+        title: editingTask.title,
+        description: editingTask.description || undefined,
+        dueDate,
+        priority: editingTask.priority,
+        status: editingTask.status,
+      });
+      setTasks((prev) =>
+        prev
+          .map((t) => (t.id === editingTask.id ? updated : t))
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()),
+      );
+      closeEdit();
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo guardar la tarea');
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const pending = tasks.filter(t => t.status !== 'completada').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -387,6 +431,102 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
         </div>
       )}
 
+      {/* Modal edición de tarea */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && closeEdit()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-900">Editar tarea</h3>
+              <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={saveEdit} className="px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Título</label>
+                <input
+                  value={editingTask.title}
+                  onChange={(e) => setEditingTask((t: any) => ({ ...t, title: e.target.value }))}
+                  required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Descripción</label>
+                <textarea
+                  value={editingTask.description}
+                  onChange={(e) => setEditingTask((t: any) => ({ ...t, description: e.target.value }))}
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Fecha</label>
+                  <input
+                    type="date"
+                    value={editingTask.dueDate}
+                    onChange={(e) => setEditingTask((t: any) => ({ ...t, dueDate: e.target.value }))}
+                    required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Hora</label>
+                  <input
+                    type="time"
+                    value={editingTask.dueTime}
+                    onChange={(e) => setEditingTask((t: any) => ({ ...t, dueTime: e.target.value }))}
+                    required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Prioridad</label>
+                  <select
+                    value={editingTask.priority}
+                    onChange={(e) => setEditingTask((t: any) => ({ ...t, priority: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                  >
+                    <option value="urgente">Urgente</option>
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Estado</label>
+                  <select
+                    value={editingTask.status}
+                    onChange={(e) => setEditingTask((t: any) => ({ ...t, status: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy-600/20"
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_curso">En curso</option>
+                    <option value="completada">Completada</option>
+                    <option value="vencida">Vencida</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={closeEdit} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 inline-flex items-center justify-center gap-1.5">
+                  <ArrowLeft size={14} />
+                  Volver
+                </button>
+                <button type="submit" disabled={editSaving} className="flex-1 py-2 bg-navy-700 text-white rounded-lg text-sm font-semibold hover:bg-navy-800 disabled:opacity-50">
+                  {editSaving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Vista cronograma */}
       {view === 'timeline' && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -455,6 +595,13 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
                             >
                               <ExternalLink size={13} />
                             </a>
+                            <button
+                              onClick={() => openEdit(task)}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-400 hover:text-navy-700 hover:bg-navy-50 transition-all"
+                              title="Editar tarea"
+                            >
+                              <Pencil size={13} />
+                            </button>
                             <button
                               onClick={() => removeTask(task.id)}
                               className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
@@ -578,6 +725,9 @@ export default function TasksTab({ caseId, caseTitle, users = [] }: Props) {
                         </a>
                         <button onClick={() => removeTask(task.id)} className="p-1 rounded text-gray-400 hover:text-red-500">
                           <Trash2 size={13} />
+                        </button>
+                        <button onClick={() => openEdit(task)} className="p-1 rounded text-gray-400 hover:text-navy-700" title="Editar tarea">
+                          <Pencil size={13} />
                         </button>
                       </div>
                     </td>
